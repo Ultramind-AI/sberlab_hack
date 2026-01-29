@@ -1,0 +1,685 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+    /* --- ПАЛИТРА --- */
+    --bg-page: #F3F5F7;        /* Очень светло-серый, почти белый */
+    --bg-card: #FFFFFF;
+
+    --text-primary: #1F2937;   /* Темно-серый, мягче черного */
+    --text-secondary: #6B7280; /* Средний серый */
+    --text-muted: #9CA3AF;     /* Светло-серый */
+
+    --sber-green: #21A038;
+    --sber-green-hover: #1b872e;
+    --sber-gradient: linear-gradient(135deg, #24B541 0%, #1A9030 100%);
+    --grad-mesh: radial-gradient(at 0% 0%, hsla(134,65%,85%,1) 0, transparent 50%), radial-gradient(at 50% 100%, hsla(215,69%,90%,1) 0, transparent 50%);
+
+    --danger: #EF4444;
+
+    /* --- ТЕНИ И ГРАНИЦЫ --- */
+    --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.04);
+    --shadow-hover: 0 12px 32px rgba(33, 160, 56, 0.12); /* Зеленоватая тень */
+    --border-light: 1px solid rgba(0,0,0,0.06);
+
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+}
+
+body {
+    margin: 0;
+    font-family: 'Manrope', sans-serif;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    overflow-x: hidden;
+    background-image: var(--grad-mesh);
+    background-attachment: fixed; /* Фон стоит на месте при скролле */
+}
+
+/* --- ОБЩИЕ ЭЛЕМЕНТЫ --- */
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 700; }
+button { font-family: inherit; }
+
+/* Анимации появления */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+.fade-in { animation: fadeIn 0.6s ease-out; }
+.fade-up { animation: fadeUp 0.5s ease-out; }
+
+/* --- HEADER (GLASSMORPHISM) --- */
+.glass-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px) saturate(180%);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 16px 0;
+}
+
+.header-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logos { display: flex; align-items: center; gap: 20px; }
+.divider { color: #D1D5DB; font-weight: 300; font-size: 20px; }
+
+.nav-pills {
+    display: flex;
+    gap: 8px;
+    background: rgba(0,0,0,0.04);
+    padding: 4px;
+    border-radius: 100px;
+}
+
+.nav-pills button {
+    background: transparent;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-pills button:hover { color: var(--text-primary); }
+.nav-pills button.active {
+    background: #fff;
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.btn-logout {
+    color: var(--danger) !important;
+    font-weight: 500 !important;
+}
+
+/* --- LOGIN PAGE --- */
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top center, #e8f5e9 0%, var(--bg-page) 60%);
+}
+
+.login-card {
+    background: var(--bg-card);
+    padding: 48px;
+    border-radius: var(--radius-lg);
+    width: 360px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+}
+
+.login-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    opacity: 0.9;
+}
+.login-x { color: #ccc; font-weight: 300; }
+.login-subtitle { color: var(--text-secondary); margin-bottom: 32px; font-size: 15px; }
+
+.login-form { display: flex; flexDirection: column; gap: 16px; }
+
+/* --- BUTTONS & INPUTS --- */
+.form-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    border: 1px solid #E5E7EB;
+    background: #F9FAFB;
+    color: var(--text-primary);
+    font-size: 15px;
+    transition: 0.2s;
+    outline: none;
+}
+
+.form-input:focus {
+    background: #fff;
+    border-color: var(--sber-green);
+    box-shadow: 0 0 0 3px rgba(33, 160, 56, 0.1);
+}
+.form-textarea { resize: vertical; font-family: inherit; }
+
+.btn-primary {
+    background: var(--sber-gradient);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(33, 160, 56, 0.3);
+}
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-full { width: 100%; }
+
+.btn-secondary {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    color: var(--text-primary);
+    padding: 10px 20px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.btn-secondary:hover { background: #F9FAFB; border-color: #D1D5DB; }
+
+.btn-danger-outline {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--danger);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-danger-outline:hover { background: #FEF2F2; }
+
+/* --- CARDS & GRID --- */
+.main-content { padding-top: 40px; padding-bottom: 80px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+.page-title { font-size: 32px; letter-spacing: -0.02em; color: var(--text-primary); }
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 32px;
+}
+
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    border: var(--border-light);
+    box-shadow: var(--shadow-soft);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.project-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.project-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-hover);
+}
+
+.project-card h2 {
+    font-size: 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.project-card h2:hover { color: var(--sber-green); }
+
+.card-top { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 13px; }
+.team-count { color: var(--text-secondary); font-weight: 600; background: #F3F4F6; padding: 4px 10px; border-radius: 20px; }
+
+/* Статусы */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.status-badge.open { background: #DCFCE7; color: #166534; } /* Зеленый */
+.status-badge.in_progress { background: #FEF3C7; color: #92400E; } /* Желтый */
+.status-badge.completed { background: #DBEAFE; color: #1E40AF; } /* Синий */
+
+.tech-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; margin-top: 15px}
+.tech-tag {
+    background: #F3F4F6;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.description {
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.btn-details {
+    background: transparent;
+    border: none;
+    color: var(--sber-green);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 0;
+    margin-bottom: 20px;
+    cursor: pointer;
+    text-align: left;
+    align-self: flex-start;
+}
+.btn-details:hover { text-decoration: underline; }
+
+.card-footer {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid #F3F4F6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mentor-block { display: flex; flex-direction: column; }
+.mentor-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+.mentor-info { display: flex; align-items: center; gap: 8px; }
+.mentor-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+/* Круглая кнопка + */
+.btn-join-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--sber-green);
+    color: white;
+    border: none;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 4px 10px rgba(33, 160, 56, 0.3);
+}
+.btn-join-icon:hover { transform: scale(1.1); background: var(--sber-green-hover); }
+
+/* Аватар */
+.avatar-circle {
+    border-radius: 50%;
+    color: white;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white; /* Белая обводка */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* --- PROJECT DETAIL VIEW --- */
+.btn-back {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 24px;
+    font-size: 15px;
+    transition: 0.2s;
+}
+.btn-back:hover { color: var(--text-primary); transform: translateX(-4px); }
+
+.project-detail-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+}
+
+/* Swiper Styling */
+.swiper-container-wrapper {
+    background: #F9FAFB;
+    /*height: 450px;*/
+    position: relative;
+    border-bottom: 1px solid #eee;
+}
+.swiper-slide-custom { display: flex; justify-content: center; align-items: center; overflow: hidden; }
+.slide-image-container { width: 100%; height: 100%; position: relative; display: flex; justify-content: center; align-items: center; }
+.slide-image-container img {
+    max-height: 90%; max-width: 90%; z-index: 2; object-fit: contain;
+    border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+.slide-blur-bg {
+    position: absolute; top: -10%; left: -10%; width: 120%; height: 120%;
+    background-size: cover; background-position: center; filter: blur(60px) brightness(1.2); opacity: 0.4; z-index: 1;
+}
+.no-image-placeholder { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 18px; font-weight: 500; }
+
+/* Swiper pagination override */
+.swiper-pagination-bullet-active { background: var(--sber-green) !important; }
+.swiper-button-next, .swiper-button-prev { color: var(--sber-green) !important; }
+
+/* Detail Content */
+.detail-content { padding: 48px; }
+.detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.detail-title { font-size: 42px; line-height: 1.1; color: var(--text-primary); }
+
+.match-badge {
+    background: #DCFCE7; color: #15803d;
+    padding: 8px 16px; border-radius: 100px;
+    font-weight: 700; font-size: 14px;
+    box-shadow: 0 4px 12px rgba(22, 165, 52, 0.15);
+}
+
+.rich-text-content {
+    font-size: 18px; color: #374151; line-height: 1.8;
+    margin: 32px 0;
+    /*max-width: 800px;*/
+}
+
+.section-title { font-size: 20px; margin-bottom: 20px; border-bottom: 2px solid #F3F4F6; padding-bottom: 10px; display: inline-block; }
+
+.team-section { margin-top: 48px; }
+.avatars-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.avatar-with-name { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.avatar-with-name span { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+
+/* Видео */
+.video-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--sber-green); text-decoration: none; font-weight: 700; font-size: 18px;
+    background: #F0FDF4; padding: 12px 24px; border-radius: 12px;
+    transition: 0.2s;
+}
+.video-link:hover { background: #DCFCE7; }
+
+/* Комменты */
+.comments-section { margin-top: 60px; background: #FAFAFA; padding: 32px; border-radius: var(--radius-md); }
+.comments-list { display: flex; flex-direction: column; gap: 16px; }
+.comment-bubble { background: #fff; padding: 16px; border-radius: 12px; border: 1px solid #eee; }
+.comment-author { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); }
+.comment-text { font-size: 15px; color: #4B5563; }
+.comment-input-row { display: flex; gap: 12px; margin-top: 16px; }
+
+/* --- ПРОФИЛЬ --- */
+.profile-container { max-width: 600px; margin: 0 auto; }
+.form-grid { display: flex; flex-direction: column; gap: 20px; }
+.form-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.row-2-col { display: flex; gap: 16px; }
+
+/* --- PROFILE STYLES --- */
+.profile-container { max-width: 800px; margin: 0 auto; }
+
+.profile-card {
+    padding: 0 !important; /* Убираем паддинг карточки, чтобы фон был на всю ширину */
+    overflow: hidden;
+    position: relative;
+}
+
+.profile-header-bg {
+    height: 120px;
+    background: var(--sber-gradient);
+    width: 100%;
+}
+
+.profile-content {
+    padding: 24px 32px 40px;
+}
+
+.profile-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: -60px; /* Аватарка наезжает на фон */
+    margin-bottom: 20px;
+}
+
+.profile-avatar-wrapper {
+    padding: 4px;
+    background: var(--bg-card);
+    border-radius: 50%;
+}
+
+.profile-name {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.profile-role {
+    font-size: 16px;
+    color: var(--sber-green);
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.profile-links {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.social-link {
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: 0.2s;
+}
+
+.social-link.telegram {
+    background: #e3f2fd; color: #1976d2;
+}
+.social-link.github {
+    background: #24292e; color: white;
+}
+.social-link:hover { opacity: 0.8; transform: translateY(-2px); }
+
+.profile-section { margin-bottom: 30px; }
+.profile-section h3 {
+    font-size: 18px; color: var(--text-primary); margin-bottom: 12px;
+}
+
+/* --- BADGES --- */
+.badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+/* Уровень сложности */
+.complexity-easy { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.complexity-medium { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+.complexity-hard { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+/* Срочность */
+.urgency-low { background: #e0f2fe; color: #075985; }
+.urgency-medium { background: #ffedd5; color: #9a3412; }
+.urgency-high { background: #ef4444; color: white; animation: pulse 2s infinite; }
+
+/* AI Match */
+.ai-match {
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-weight: 800;
+    font-size: 12px;
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+    display: flex; align-items: center; gap: 5px;
+}
+
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+/* Стили для формы редактирования (чтобы было красиво как просил) */
+.edit-form-container {
+    padding: 30px;
+}
+.edit-form-header {
+    margin-bottom: 24px; border-bottom: 1px solid #eee; padding-bottom: 16px;
+}
+
+/* --- MOBILE ADAPTATION (RESPONSIVE) --- */
+
+@media screen and (max-width: 768px) {
+    /* 1. Контейнер и общие отступы */
+    .container {
+        padding: 0 16px;
+    }
+
+    .main-content {
+        padding-top: 20px;
+        padding-bottom: 60px;
+    }
+
+    /* 2. Шапка (Header) */
+    .header-inner {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .nav-pills {
+        width: 100%;
+        justify-content: center; /* Центрируем кнопки */
+        flex-wrap: wrap;         /* Если не влезут - перенос */
+        box-sizing: border-box;
+    }
+
+    .nav-pills button {
+        flex: 1;                 /* Растягиваем кнопки равномерно */
+        text-align: center;
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    /* 3. Сетка проектов */
+    .grid {
+        /* Одна колонка на мобильных, но не уже 280px */
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    /* 4. Карточка проекта */
+    .project-card h2 {
+        font-size: 18px;
+    }
+
+    .card-top {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* 5. Страница детального просмотра */
+    .project-detail-card {
+        border-radius: var(--radius-md); /* Чуть меньше скругление */
+    }
+
+    .swiper-container-wrapper {
+        /*height: 250px; !* Уменьшаем высоту слайдера на телефоне *!*/
+    }
+
+    .detail-content {
+        padding: 24px 16px; /* Уменьшаем внутренние отступы */
+    }
+
+    .detail-title {
+        font-size: 26px; /* Уменьшаем заголовок */
+    }
+
+    .rich-text-content {
+        font-size: 15px;
+    }
+
+    .team-section .avatars-row {
+        justify-content: flex-start;
+        gap: 16px;
+    }
+
+    /* 6. Профиль */
+    .profile-top-row {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin-top: -60px; /* Оставляем наезд на фон */
+    }
+
+    .profile-avatar-wrapper {
+        margin-bottom: 16px;
+    }
+
+    .btn-secondary {
+        width: 100%; /* Кнопка редактирования на всю ширину */
+        justify-content: center;
+    }
+
+    .profile-links {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .social-link {
+        text-align: center;
+    }
+
+    /* 7. Формы и Login */
+    .login-card {
+        width: 100%;
+        max-width: 90%; /* Чтобы не прилипало к краям */
+        padding: 32px 20px;
+    }
+
+    .row-2-col {
+        flex-direction: column; /* Поля в одну колонку */
+        gap: 16px;
+    }
+
+    .form-input, .btn-primary {
+        font-size: 16px; /* Чтобы iOS не зумил инпуты при фокусе */
+    }
+
+    /* Бейджи в карточках */
+    .card-top div:first-child {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+}
+
+/* Для совсем маленьких экранов (iPhone SE и т.д.) */
+@media screen and (max-width: 380px) {
+    .detail-title {
+        font-size: 22px;
+    }
+
+    .nav-pills button {
+        font-size: 11px;
+        padding: 6px 8px;
+    }
+}
