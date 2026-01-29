@@ -131,7 +131,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -147,4 +148,73 @@ CKEDITOR_CONFIGS = {
         ],
         'width': 'auto',
     },
+}
+
+# Красивая админка
+JAZZMIN_SETTINGS = {
+    # Заголовок окна браузера
+    "site_title": "SberLab Admin",
+    # Заголовок на экране входа
+    "site_header": "SberLab Панель",
+    # Текст в левом верхнем углу (логотип-текст)
+    "site_brand": "SberLab NSU",
+    # Логотип (используем тот же, что и на фронте, если он в static)
+    # "site_logo": "sber_logo.png",
+    # Приветствие на экране входа
+    "welcome_sign": "Добро пожаловать в панель управления SberLab",
+    # Авторское право в футере
+    "copyright": "SberLab & NSU Team",
+    # Поиск по моделям
+    "search_model": ["core.User", "core.Project"],
+
+    # --- ИКОНКИ ДЛЯ МЕНЮ (Font Awesome) ---
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "core.user": "fas fa-user-graduate",
+        "core.project": "fas fa-project-diagram",
+        "core.projectimage": "fas fa-image",
+        "authtoken.token": "fas fa-key",
+    },
+
+    # Названия для разделов
+    "topmenu_links": [
+        {"name": "Главная", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Открыть сайт", "url": "http://localhost:5173", "new_window": True},
+    ],
+
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "order_with_respect_to": ["core.Project", "core.User"],
+}
+
+# Настройки внешнего вида (Цвета Сбера)
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-success",  # Зеленый бренд
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-success",  # Зеленый акцент в меню
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "flatly",  # Чистая современная тема
+    "dark_mode_theme": None,
+    "button_classes": {
+        "primary": "btn-success",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
 }
