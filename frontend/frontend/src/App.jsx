@@ -98,6 +98,124 @@ const Avatar = ({ name, url, size = 32, bg = 'var(--sber-green)' }) => {
     );
 };
 
+// --- КОМПОНЕНТ: ПРОСМОТР ЧУЖОГО ПРОФИЛЯ (МОДАЛКА) ---
+const UserProfileModal = ({ user, onClose }) => {
+    if (!user) return null;
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-window" style={{maxWidth: 600, height:'auto'}} onClick={e=>e.stopPropagation()}>
+                <div className="modal-header"><h3>Карточка участника</h3><button className="btn-close" onClick={onClose}>✕</button></div>
+                <div className="modal-body">
+                    <div style={{display:'flex', gap:20, alignItems:'start'}}>
+                        <div style={{textAlign:'center'}}>
+                            <Avatar name={user.fio} url={user.avatar} size={120} />
+                            <div className="badge" style={{marginTop:10, display:'inline-block'}}>{user.role}</div>
+                        </div>
+                        <div style={{flex:1}}>
+                            <h2 style={{marginTop:0}}>{user.fio}</h2>
+
+                            {user.role === 'student' && (
+                                <div style={{display:'flex', gap:10, marginBottom:15}}>
+                                    <div style={{background:'#F3F4F6', padding:'5px 10px', borderRadius:6}}>⭐ GPA: <b>{user.gpa}</b></div>
+                                    <div style={{background:'#F3F4F6', padding:'5px 10px', borderRadius:6}}>📚 Группа: <b>{user.group_number}</b></div>
+                                    {user.is_verified && <span style={{color:'green', display:'flex', alignItems:'center'}}>✅ Verified</span>}
+                                </div>
+                            )}
+
+                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:15}}>
+                                {user.telegram && <a href={`https://t.me/${user.telegram.replace('@','')}`} target="_blank" className="btn-secondary">✈️ Telegram</a>}
+                                {user.github && <a href={user.github} target="_blank" className="btn-secondary">👾 GitHub</a>}
+                                {user.resume && <a href={user.resume} target="_blank" className="btn-secondary">📄 Резюме</a>}
+                            </div>
+
+                            <div style={{marginBottom:10}}>
+                                <label className="mentor-label">Стек технологий</label>
+                                <div>{user.tech_stack || '-'}</div>
+                            </div>
+
+                            {user.about && (
+                                <div>
+                                    <label className="mentor-label">О себе</label>
+                                    <p style={{fontSize:14, lineHeight:1.5}} dangerouslySetInnerHTML={{__html: user.about}}></p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- КОМПОНЕНТ: ПАНЕЛЬ УПРАВЛЕНИЯ МЕНТОРА ---
+const MentorAdminPanel = ({ project, onUpdate }) => {
+    const [resTitle, setResTitle] = useState('');
+    const [resUrl, setResUrl] = useState('');
+
+    const addResource = async () => { /* ...старый код... */ };
+
+    // Логика статусов
+    const changeStatus = async (newStatus) => {
+        // Мы используем patch для смены статуса, либо кастомный action
+        // Для простоты используем patch (стандартный update)
+        try {
+            const formData = new FormData();
+            formData.append('status', newStatus);
+            await axios.patch(`${API_URL}/projects/${project.id}/`, formData);
+            onUpdate();
+        } catch(e) { alert('Ошибка'); }
+    };
+
+    return (
+        <div style={{ background: '#F3F4F6', padding: 20, borderRadius: 12, marginTop: 30, border: '1px solid #E5E7EB' }}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+                <h3>🛠 Панель управления</h3>
+                <div style={{display:'flex', gap:10}}>
+                    {project.status === 'open' && (
+                        <button className="btn-primary" onClick={() => changeStatus('in_progress')}>▶️ Запустить в работу</button>
+                    )}
+                    {project.status === 'in_progress' && (
+                        <button className="btn-primary" style={{background:'#059669'}} onClick={() => changeStatus('done')}>🏁 Завершить проект</button>
+                    )}
+
+                    {/* Кнопка Архивации / Восстановления */}
+                    {project.status !== 'done' ? (
+                        <button className="btn-secondary" style={{color:'red'}} onClick={() => changeStatus('done')}>📁 В архив</button>
+                    ) : (
+                        <button className="btn-secondary" onClick={() => changeStatus('open')}>♻️ Восстановить</button>
+                    )}
+                </div>
+            </div>
+
+            {/* Блок ресурсов показываем ТОЛЬКО если нужен NDA или проект уже в работе */}
+            {(project.is_nda_required || project.status === 'in_progress') && (
+                <div style={{ marginBottom: 20, background:'white', padding:15, borderRadius:8 }}>
+                    <h4 style={{marginTop:0}}>🔐 Управление доступами {project.is_nda_required && '(NDA)'}</h4>
+                    <p className="text-muted" style={{fontSize:13, marginBottom:10}}>
+                        Ссылки, добавленные здесь, увидят только принятые студенты {project.is_nda_required && 'подписавшие NDA'}.
+                    </p>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                        <input className="form-input" placeholder="Название (GitLab, Figma)" value={resTitle} onChange={e => setResTitle(e.target.value)} />
+                        <input className="form-input" placeholder="URL" value={resUrl} onChange={e => setResUrl(e.target.value)} />
+                        <button className="btn-secondary" onClick={addResource}>Добавить</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Поле для Диплома */}
+            {project.is_diploma_allowed && (
+                <div style={{ marginBottom: 20, background:'white', padding:15, borderRadius:8 }}>
+                    <h4 style={{marginTop:0}}>🎓 Научное обоснование</h4>
+                    <p className="text-muted" style={{fontSize:13}}>Это увидят преподаватели ВУЗа.</p>
+                    <div style={{padding:10, background:'#f9f9f9', borderRadius:4, fontStyle:'italic'}}>
+                        {project.scientific_value || 'Не заполнено. Отредактируйте проект, чтобы добавить.'}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- КОМПОНЕНТ: МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ПРОЕКТА (ОБНОВЛЕННАЯ С NDA) ---
 const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGenerate }) => {
     if (!isOpen) return null;
@@ -359,8 +477,8 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
     );
 };
 
-// --- КОМПОНЕНТ УПРАВЛЕНИЯ КАНДИДАТАМИ (МЕНТОР) ---
-const CandidatesManager = ({ projectId }) => {
+// --- КОМПОНЕНТ УПРАВЛЕНИЯ КАНДИДАТАМИ (ОБНОВЛЕННЫЙ С "КИК") ---
+const CandidatesManager = ({ projectId, onShowProfile }) => {
     const [candidates, setCandidates] = useState([]);
 
     const fetchCandidates = async () => {
@@ -381,38 +499,61 @@ const CandidatesManager = ({ projectId }) => {
         } catch (e) { alert(e.response?.data?.error || 'Ошибка'); }
     };
 
-    if (candidates.length === 0) return <div className="text-muted">Заявок пока нет.</div>;
+    const handleKick = async (userId) => {
+        if(!confirm('Удалить студента из команды?')) return;
+        try {
+            await axios.post(`${API_URL}/projects/${projectId}/kick_student/`, { student_id: userId });
+            fetchCandidates();
+        } catch (e) { alert('Ошибка'); }
+    };
+
+    // Разделяем на заявки и команду
+    const pending = candidates.filter(c => c.status === 'pending');
+    const team = candidates.filter(c => c.status === 'accepted');
 
     return (
         <div style={{marginTop: 20}}>
-            {candidates.map(c => (
-                <div key={c.id} className="card" style={{marginBottom: 10, borderLeft: c.status === 'accepted' ? '4px solid green' : c.status === 'rejected' ? '4px solid red' : '4px solid orange'}}>
+            {/* БЛОК КОМАНДЫ */}
+            <h4>Команда ({team.length})</h4>
+            <div className="grid" style={{gridTemplateColumns:'repeat(auto-fill, minmax(250px, 1fr))', marginBottom:20}}>
+                {team.map(c => (
+                    <div key={c.id} className="card" style={{padding:15, display:'flex', alignItems:'center', gap:10}}>
+                        <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
+                            <Avatar name={c.user.fio} url={c.user.avatar} size={40} />
+                        </div>
+                        <div style={{flex:1}}>
+                            <div style={{fontWeight:'bold', cursor:'pointer'}} onClick={()=>onShowProfile(c.user)}>{c.user.fio}</div>
+                            <div style={{fontSize:12, color:'gray'}}>GPA: {c.user.gpa || 'Нет данных'}</div>
+                        </div>
+                        <button className="btn-danger-outline" style={{padding:'5px 10px'}} onClick={()=>handleKick(c.user.id)}>✕</button>
+                    </div>
+                ))}
+                {team.length === 0 && <p className="text-muted">Команда пуста.</p>}
+            </div>
+
+            {/* БЛОК ЗАЯВОК */}
+            <h4>Новые заявки ({pending.length})</h4>
+            {pending.map(c => (
+                <div key={c.id} className="card" style={{marginBottom: 10, borderLeft: '4px solid orange'}}>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
                         <div style={{display:'flex', gap: 10}}>
-                            <Avatar name={c.user.fio} url={c.user.avatar} />
+                            <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
+                                <Avatar name={c.user.fio} url={c.user.avatar} />
+                            </div>
                             <div>
-                                <b>{c.user.fio}</b> <span className="text-muted" style={{fontSize:12}}>{c.user.role}</span>
+                                <b onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>{c.user.fio}</b>
                                 {c.is_diploma_request && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF', marginLeft:8}}>Хочет диплом</span>}
-                                <div style={{fontSize:12}}>GPA: <b>{c.user.gpa}</b> | Стек: {c.user.tech_stack}</div>
-                                <div style={{background:'#F9FAFB', padding:8, borderRadius:6, marginTop:5, fontSize:13}}>
-                                    "{c.cover_letter}"
-                                </div>
+                                <div style={{background:'#F9FAFB', padding:8, borderRadius:6, marginTop:5, fontSize:13}}>"{c.cover_letter}"</div>
                             </div>
                         </div>
-                        {c.status === 'pending' && (
-                            <div style={{display:'flex', flexDirection:'column', gap:5}}>
-                                <button className="btn-primary" style={{fontSize:12, padding:'5px 10px'}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
-                                <button className="btn-secondary" style={{fontSize:12, padding:'5px 10px', color:'red'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
-                            </div>
-                        )}
-                        {c.status !== 'pending' && (
-                            <span className={`status-badge ${c.status}`}>
-                                {c.status === 'accepted' ? 'Принят' : c.status === 'rejected' ? 'Отклонен' : 'Ожидание'}
-                            </span>
-                        )}
+                        <div style={{display:'flex', flexDirection:'column', gap:5}}>
+                            <button className="btn-primary" style={{fontSize:12}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
+                            <button className="btn-secondary" style={{fontSize:12, color:'red'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
+                        </div>
                     </div>
                 </div>
             ))}
+            {pending.length === 0 && <p className="text-muted">Новых заявок нет.</p>}
         </div>
     );
 };
@@ -432,6 +573,7 @@ function App() {
     const [profileData, setProfileData] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
     const [allUsers, setAllUsers] = useState([]);
+    const [viewedUser, setViewedUser] = useState(null); // Кого смотрим в профиле
 
     // Модалки и формы
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -630,6 +772,65 @@ function App() {
     const getComplexityLabel = (c) => ({ easy: '🟢 Легкий', medium: '🟡 Средний', hard: '🔴 Сложный' }[c] || c);
     const getUrgencyLabel = (u) => ({ low: 'Спокойно', medium: 'Срочно', high: '🔥 Горит' }[u] || u);
 
+    // Логика фильтрации проектов для отображения
+    const getDisplayedProjects = () => {
+        if (view === 'archive') {
+            // Показываем только завершенные/архивные И только мои (если я ментор)
+            return projects.filter(p => p.status === 'done' && p.creator.id == user.id);
+        }
+        if (view === 'my') {
+            // Мои активные
+            return projects.filter(p => (p.mentor_info?.id == user.id || p.my_status) && p.status !== 'done');
+        }
+        // Витрина: только активные
+        return projects.filter(p => p.status !== 'done');
+    };
+
+    const displayedProjects = getDisplayedProjects();
+
+    const ProjectComments = ({ project, onUpdate }) => {
+        const [text, setText] = useState('');
+
+        const sendComment = async () => {
+            if (!text.trim()) return;
+            try {
+                await axios.post(`${API_URL}/projects/${project.id}/add_comment/`, { text });
+                setText('');
+                onUpdate(); // Перезагружаем проект, чтобы увидеть новый коммент
+            } catch (e) { alert('Ошибка отправки'); }
+        };
+
+        return (
+            <div style={{ marginTop: 40, background: '#FAFAFA', padding: 25, borderRadius: 12 }}>
+                <h3>💬 Вопросы ментору</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 15, marginBottom: 20 }}>
+                    {project.comments.map(c => (
+                        <div key={c.id} style={{ background: '#fff', padding: 15, borderRadius: 8, border: '1px solid #eee' }}>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 5 }}>
+                                <Avatar name={c.author.fio} url={c.author.avatar} size={24} />
+                                <b>{c.author.fio}</b>
+                                <span style={{ fontSize: 12, color: '#999' }}>{new Date(c.created_at).toLocaleString()}</span>
+                            </div>
+                            <div>{c.text}</div>
+                        </div>
+                    ))}
+                    {project.comments.length === 0 && <p className="text-muted">Пока нет вопросов. Будьте первым!</p>}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <input
+                        className="form-input"
+                        placeholder="Уточните детали перед подачей заявки..."
+                        value={text}
+                        onChange={e => setText(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && sendComment()}
+                    />
+                    <button className="btn-primary" onClick={sendComment}>Отправить</button>
+                </div>
+            </div>
+        );
+    };
+
     // --- РЕНДЕР ДЕТАЛЬНОЙ СТРАНИЦЫ ПРОЕКТА ---
     const renderProjectDetail = () => {
         if (!selectedProject) return null;
@@ -641,6 +842,9 @@ function App() {
 
         return (
             <div className="container fade-in" style={{ paddingTop: 40, paddingBottom: 80 }}>
+                {/* МОДАЛКА ПРОФИЛЯ (ВСЕГДА В DOM, НО СКРЫТА) */}
+                <UserProfileModal user={viewedUser} onClose={()=>setViewedUser(null)} />
+
                 <button onClick={() => {setSelectedProject(null); fetchProjects();}} className="btn-back">← Назад</button>
                 <div className="project-detail-card">
                     {/* ГАЛЕРЕЯ */}
@@ -670,6 +874,18 @@ function App() {
                         </div>
 
                         <h1 className="detail-title">{selectedProject.title}</h1>
+
+                        {/* --- МЕНТОРЫ ПРОЕКТА (КЛИКАБЕЛЬНЫЕ) --- */}
+                        <div style={{display:'flex', gap:15, margin:'20px 0'}}>
+                            <div style={{display:'flex', alignItems:'center', gap:10}}>
+                                <span className="text-muted">Ментор:</span>
+                                <div style={{cursor:'pointer', display:'flex', alignItems:'center', gap:5}} onClick={()=>setViewedUser(selectedProject.creator)}>
+                                    <Avatar name={selectedProject.creator.fio} url={selectedProject.creator.avatar} size={32} />
+                                    <b>{selectedProject.creator.fio}</b>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="tech-row">
                             {selectedProject.tech_stack?.split(',').map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>)}
                         </div>
@@ -716,29 +932,42 @@ function App() {
                             </div>
                         )}
 
-                        {/* --- ВКЛАДКА МЕНТОРА: КАНДИДАТЫ --- */}
+                        {/* --- АДМИН ПАНЕЛЬ МЕНТОРА (НОВОЕ) --- */}
+                        {isMentor && (
+                            <MentorAdminPanel
+                                project={selectedProject}
+                                onUpdate={async () => {
+                                    // Обновляем данные проекта после изменений
+                                    const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
+                                    setSelectedProject(res.data);
+                                }}
+                            />
+                        )}
+
+                        {/* --- УПРАВЛЕНИЕ КОМАНДОЙ (ОБНОВЛЕННОЕ) --- */}
                         {isMentor && (
                             <div style={{marginTop: 40, borderTop: '2px solid #eee', paddingTop: 20}}>
                                 <h2>👨‍🏫 Управление командой</h2>
-                                <CandidatesManager projectId={selectedProject.id} />
+                                <CandidatesManager
+                                    projectId={selectedProject.id}
+                                    onShowProfile={(u) => setViewedUser(u)} // Открываем модалку
+                                />
                             </div>
                         )}
 
                         {/* Вставка HTML из редактора */}
                         <div className="rich-text-content ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: selectedProject.full_description || selectedProject.description }} />
 
-                        <div className="team-section">
-                            <h3 className="section-title">Команда ({selectedProject.students_info?.length || 0}/{selectedProject.max_students})</h3>
-                            <div className="avatars-row">
-                                {selectedProject.students_info?.map(s => (
-                                    <div key={s.id} className="avatar-with-name">
-                                        <Avatar name={s.fio} url={s.avatar} size={48} />
-                                        <span>{s.fio?.split(' ')[0]}</span>
-                                    </div>
-                                ))}
-                                {(selectedProject.students_info?.length === 0 || !selectedProject.students_info) && <span className="text-muted">Пока пусто...</span>}
-                            </div>
-                        </div>
+
+
+                        {/* БЛОК ВОПРОСОВ И ОТВЕТОВ */}
+                        <ProjectComments
+                            project={selectedProject}
+                            onUpdate={async () => {
+                                const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
+                                setSelectedProject(res.data);
+                            }}
+                        />
                     </div>
                 </div>
 
@@ -869,13 +1098,17 @@ function App() {
                         <img src="/sber_logo.png" height="42" alt="Sber" />
                     </div>
                     <nav className="nav-pills">
-                        <button className={view === 'all' ? 'active' : ''} onClick={() => setView('all')}>Витрина</button>
-                        <button className={view === 'my' ? 'active' : ''} onClick={() => setView('my')}>Мои проекты</button>
-                        {user.role === 'teacher' && (
-                            <button className={view === 'teacher' ? 'active' : ''} onClick={() => setView('teacher')}>🎓 Деканат</button>
+                        <button className={view==='all'?'active':''} onClick={()=>setView('all')}>Витрина</button>
+                        <button className={view==='my'?'active':''} onClick={()=>setView('my')}>Мои проекты</button>
+
+                        {/* Вкладка Архива только для Ментора */}
+                        {user.role === 'mentor' && (
+                            <button className={view==='archive'?'active':''} onClick={()=>setView('archive')}>📁 Архив</button>
                         )}
-                        <button className={view === 'profile' ? 'active' : ''} onClick={() => setView('profile')}>👤 Профиль</button>
-                        <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="btn-logout">Выход</button>
+
+                        <button className={view==='profile'?'active':''} onClick={()=>setView('profile')}>👤 Профиль</button>
+                        {user.role === 'teacher' && <button onClick={()=>setView('teacher')}>🏫 Деканат</button>}
+                        <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="btn-logout">Выход</button>
                     </nav>
                 </div>
             </header>
@@ -1092,7 +1325,13 @@ function App() {
                                         <button onClick={() => setSelectedProject(p)} className="btn-details">Подробнее</button>
                                         <div className="card-footer">
                                             <div className="mentor-info">
-                                                <Avatar name={p.mentor_info?.fio || p.creator?.fio} url={p.mentor_info?.avatar || p.creator?.avatar} size={24} />
+                                                <div style={{cursor: 'pointer'}} onClick={() => {
+                                                    if (p.mentor_info || p.creator) {
+                                                        setViewedUser(p.mentor_info || p.creator);
+                                                    }
+                                                }}>
+                                                    <Avatar name={p.mentor_info?.fio || p.creator?.fio} url={p.mentor_info?.avatar || p.creator?.avatar} size={24} />
+                                                </div>
                                                 <span className="mentor-name">{(p.mentor_info?.fio || p.creator?.fio)?.split(' ')[0]}</span>
                                             </div>
                                             <div className="action-block">

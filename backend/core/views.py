@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
-from .models import User, Project
+from .models import User, Project, ProjectComment
 from .serializers import UserSerializer, ProjectSerializer, ParticipationSerializer
 from gigachat import GigaChat
 from rest_framework import generics
@@ -247,6 +247,62 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         project.save()
         return Response({'status': 'success', 'message': 'Вы покинули команду'})
+
+    # --- ДОБАВИТЬ СКРЫТЫЙ РЕСУРС (ДЛЯ МЕНТОРА) ---
+    @action(detail=True, methods=['post'])
+    def add_resource(self, request, pk=None):
+        project = self.get_object()
+        if request.user != project.creator and request.user not in project.mentors.all():
+            return Response({'error': 'Нет прав'}, status=403)
+
+        ProjectResource.objects.create(
+            project=project,
+            title=request.data.get('title'),
+            url=request.data.get('url')
+        )
+        return Response({'status': 'added'})
+
+    # --- ИСКЛЮЧИТЬ СТУДЕНТА (КИКНУТЬ) ---
+    @action(detail=True, methods=['post'])
+    def kick_student(self, request, pk=None):
+        project = self.get_object()
+        if request.user != project.creator and request.user not in project.mentors.all():
+            return Response({'error': 'Нет прав'}, status=403)
+
+        student_id = request.data.get('student_id')
+        # Удаляем запись об участии
+        Participation.objects.filter(project=project, user_id=student_id).delete()
+
+        return Response({'status': 'kicked', 'message': 'Студент исключен из команды'})
+
+    # --- АРХИВИРОВАТЬ ПРОЕКТ ---
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        project = self.get_object()
+        if request.user != project.creator:
+            return Response({'error': 'Только создатель может архивировать'}, status=403)
+
+        project.status = 'done'  # Или можно ввести статус 'archived'
+        project.save()
+        return Response({'status': 'archived'})
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def add_comment(self, request, pk=None):
+        project = self.get_object()
+        text = request.data.get('text')
+        if not text: return Response({'error': 'Пустой текст'}, status=400)
+
+        ProjectComment.objects.create(project=project, author=request.user, text=text)
+        return Response({'status': 'comment added'})
+
+    @action(detail=True, methods=['post'])
+    def restore(self, request, pk=None):
+        """Восстановить из архива"""
+        project = self.get_object()
+        if request.user != project.creator: return Response({'error': 'Нет прав'}, status=403)
+        project.status = 'open'
+        project.save()
+        return Response({'status': 'restored'})
 
 
 class RegisterView(generics.CreateAPIView):

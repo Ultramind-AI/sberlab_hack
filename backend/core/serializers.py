@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Project, ProjectImage, ProjectResource, Participation
+from .models import User, Project, ProjectImage, ProjectResource, Participation, ProjectComment
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -10,23 +10,26 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'fio', 'role', 'email', 'avatar',
             'about', 'tech_stack', 'telegram', 'github', 'resume', 'portfolio',
-            'group_number', 'gpa', 'is_verified' # <--- Добавили
+            'group_number', 'gpa', 'is_verified'
         ]
         read_only_fields = ['is_verified']
 
     def get_portfolio(self, obj):
-        # Находим проекты, где юзер - студент
-        # Используем related_name='joined_projects' из модели Project
-        projects = obj.joined_projects.all().order_by('-created_at')
+        # ИСПРАВЛЕНИЕ: Ищем через модель Participation
+        # Берем проекты, где статус 'accepted' (в команде) или 'completed' (завершил)
+        participations = obj.participations.filter(status__in=['accepted', 'completed'])
+
         return [
             {
-                'id': p.id,
-                'title': p.title,
-                'status': p.status,
-                'complexity': p.complexity,
-                'tech_stack': p.tech_stack
+                'id': p.project.id,
+                'title': p.project.title,
+                'status': p.project.status,
+                'complexity': p.project.complexity,
+                'tech_stack': p.project.tech_stack,
+                'grade': p.grade,  # Оценка ментора
+                'review': p.mentor_review  # Отзыв ментора
             }
-            for p in projects
+            for p in participations
         ]
 
 
@@ -56,6 +59,14 @@ class ParticipationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = UserShortSerializer(read_only=True)
+    class Meta:
+        model = ProjectComment
+        fields = ['id', 'author', 'text', 'created_at']
+
+
 class ProjectSerializer(serializers.ModelSerializer):
     creator = UserShortSerializer(read_only=True)
     mentors = UserShortSerializer(many=True, read_only=True)
@@ -69,6 +80,9 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     # Статистика
     students_count = serializers.SerializerMethodField()
+
+    # Comments
+    comments = CommentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project

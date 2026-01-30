@@ -51,6 +51,7 @@ class Project(models.Model):
     urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES, default='medium')
     deadline = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    scientific_value = models.TextField(blank=True, verbose_name="Научное обоснование (для диплома)")
 
     # НОВЫЕ ПОЛЯ (БИЗНЕС-ЛОГИКА)
     is_nda_required = models.BooleanField(default=False, verbose_name="Требуется NDA")
@@ -104,3 +105,13 @@ class Participation(models.Model):
 
     class Meta:
         unique_together = ('project', 'user')  # Один юзер - одна заявка на проект
+
+
+class ProjectComment(models.Model):
+    project = models.ForeignKey(Project, related_name='comments', on_delete=models.CASCADE)
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.author} -> {self.project}"
