@@ -98,8 +98,7 @@ const Avatar = ({ name, url, size = 32, bg = 'var(--sber-green)' }) => {
     );
 };
 
-// --- КОМПОНЕНТ: МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ПРОЕКТА ---
-// --- КОМПОНЕНТ: МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ПРОЕКТА ---
+// --- КОМПОНЕНТ: МОДАЛЬНОЕ ОКНО СОЗДАНИЯ ПРОЕКТА (ОБНОВЛЕННАЯ С NDA) ---
 const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGenerate }) => {
     if (!isOpen) return null;
 
@@ -111,7 +110,9 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
         max_students: 3,
         complexity: 'medium',
         urgency: 'medium',
-        deadline: ''
+        deadline: '',
+        is_nda_required: false,
+        is_diploma_allowed: false
     });
 
     const [aiPrompt, setAiPrompt] = useState('');
@@ -144,7 +145,6 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
     const onAiClick = async () => {
         const data = await handleAiGenerate(aiPrompt);
         if (data) {
-            // Используем prev, чтобы точно не потерять данные при ре-рендере
             setFormData(prev => ({
                 ...prev,
                 title: data.title || prev.title,
@@ -170,8 +170,6 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
         onSubmit(payload);
     };
 
-    // --- ВАЖНО: Универсальный обработчик для обычных полей ---
-    // Использует prev, чтобы избежать затирания данных
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -216,7 +214,6 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
                                     className="form-input"
                                     required
                                     value={formData.title}
-                                    /* ИСПРАВЛЕНО: используем handleChange */
                                     onChange={e => handleChange('title', e.target.value)}
                                     placeholder="Название проекта"
                                 />
@@ -230,6 +227,26 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
                                     onChange={e => handleChange('deadline', e.target.value)}
                                 />
                             </div>
+                        </div>
+
+                        {/* НОВЫЕ ЧЕКБОКСЫ */}
+                        <div style={{background: '#f3f4f6', padding: 15, borderRadius: 10, display: 'flex', gap: 20, flexWrap: 'wrap'}}>
+                            <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.is_nda_required}
+                                    onChange={e => handleChange('is_nda_required', e.target.checked)}
+                                />
+                                🔒 Требуется NDA
+                            </label>
+                            <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.is_diploma_allowed}
+                                    onChange={e => handleChange('is_diploma_allowed', e.target.checked)}
+                                />
+                                🎓 Можно как диплом
+                            </label>
                         </div>
 
                         <div className="row-2-col">
@@ -271,8 +288,7 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
                             <ReactQuill
                                 theme="snow"
                                 value={formData.full_description}
-                                /* ИСПРАВЛЕНО: используем prev внутри сеттера */
-                                onChange={(val) => setFormData(prev => ({ ...prev, full_description: val }))}
+                                onChange={(val) => handleChange('full_description', val)}
                                 modules={quillModules}
                                 placeholder="Опишите задачу подробно..."
                             />
@@ -306,6 +322,101 @@ const ProjectEditorModal = ({ isOpen, onClose, onSubmit, isAiLoading, handleAiGe
     );
 };
 
+// --- МОДАЛКА ПОДАЧИ ЗАЯВКИ (СТУДЕНТ) ---
+const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
+    if (!isOpen) return null;
+    const [coverLetter, setCoverLetter] = useState('');
+    const [isDiploma, setIsDiploma] = useState(false);
+
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-window" style={{maxWidth: 500, height: 'auto'}} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>Подача заявки</h3>
+                    <button className="btn-close" onClick={onClose}>✕</button>
+                </div>
+                <div className="modal-body">
+                    <label className="form-label">Почему вы хотите в этот проект?</label>
+                    <textarea
+                        className="form-input form-textarea"
+                        rows="4"
+                        value={coverLetter}
+                        onChange={e => setCoverLetter(e.target.value)}
+                        placeholder="Опишите свой опыт и мотивацию..."
+                    />
+
+                    <label style={{display:'flex', alignItems:'center', gap:10, marginTop:15, cursor:'pointer'}}>
+                        <input type="checkbox" checked={isDiploma} onChange={e => setIsDiploma(e.target.checked)} />
+                        <span>Планирую писать диплом по этой теме</span>
+                    </label>
+
+                    <button className="btn-primary btn-full" style={{marginTop: 20}} onClick={() => onSubmit(coverLetter, isDiploma)}>
+                        Отправить заявку
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- КОМПОНЕНТ УПРАВЛЕНИЯ КАНДИДАТАМИ (МЕНТОР) ---
+const CandidatesManager = ({ projectId }) => {
+    const [candidates, setCandidates] = useState([]);
+
+    const fetchCandidates = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/projects/${projectId}/candidates/`);
+            setCandidates(res.data);
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => {
+        if (projectId) fetchCandidates();
+    }, [projectId]);
+
+    const handleDecision = async (partId, action) => {
+        try {
+            await axios.post(`${API_URL}/projects/${projectId}/manage_candidate/${partId}/`, { action });
+            fetchCandidates();
+        } catch (e) { alert(e.response?.data?.error || 'Ошибка'); }
+    };
+
+    if (candidates.length === 0) return <div className="text-muted">Заявок пока нет.</div>;
+
+    return (
+        <div style={{marginTop: 20}}>
+            {candidates.map(c => (
+                <div key={c.id} className="card" style={{marginBottom: 10, borderLeft: c.status === 'accepted' ? '4px solid green' : c.status === 'rejected' ? '4px solid red' : '4px solid orange'}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
+                        <div style={{display:'flex', gap: 10}}>
+                            <Avatar name={c.user.fio} url={c.user.avatar} />
+                            <div>
+                                <b>{c.user.fio}</b> <span className="text-muted" style={{fontSize:12}}>{c.user.role}</span>
+                                {c.is_diploma_request && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF', marginLeft:8}}>Хочет диплом</span>}
+                                <div style={{fontSize:12}}>GPA: <b>{c.user.gpa}</b> | Стек: {c.user.tech_stack}</div>
+                                <div style={{background:'#F9FAFB', padding:8, borderRadius:6, marginTop:5, fontSize:13}}>
+                                    "{c.cover_letter}"
+                                </div>
+                            </div>
+                        </div>
+                        {c.status === 'pending' && (
+                            <div style={{display:'flex', flexDirection:'column', gap:5}}>
+                                <button className="btn-primary" style={{fontSize:12, padding:'5px 10px'}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
+                                <button className="btn-secondary" style={{fontSize:12, padding:'5px 10px', color:'red'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
+                            </div>
+                        )}
+                        {c.status !== 'pending' && (
+                            <span className={`status-badge ${c.status}`}>
+                                {c.status === 'accepted' ? 'Принят' : c.status === 'rejected' ? 'Отклонен' : 'Ожидание'}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
 function App() {
     // --- STATE: AUTH ---
     const [token, setToken] = useState(localStorage.getItem('token'));
@@ -325,6 +436,7 @@ function App() {
     // Модалки и формы
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
     // Вход
     const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -333,6 +445,12 @@ function App() {
 
     // AI State (передается в модалку)
     const [isAiLoading, setIsAiLoading] = useState(false);
+
+    // Регистрация
+    const [isRegistering, setIsRegistering] = useState(false);
+    const [regData, setRegData] = useState({
+        username: '', password: '', fio: '', role: 'student', group_number: '', gpa: ''
+    });
 
     // Axios Config
     if (token) axios.defaults.headers.common['Authorization'] = `Token ${token}`;
@@ -345,11 +463,10 @@ function App() {
 
             if (view === 'my') {
                 data = data.filter(p =>
-                    p.mentor_info.id == user.id ||
-                    p.students_info.some(s => s.id == user.id)
+                    p.mentor_info?.id == user.id ||
+                    p.students_info?.some(s => s.id == user.id)
                 ).reverse();
             } else {
-                // Умная сортировка: сначала Match, потом свежие
                 data.sort((a, b) => {
                     if (b.match_score !== a.match_score) return b.match_score - a.match_score;
                     return new Date(b.created_at) - new Date(a.created_at);
@@ -366,35 +483,11 @@ function App() {
         } catch (e) { console.error(e); }
     };
 
-    // 2. В fetchProjects/fetchProfile добавь загрузку юзеров, если роль teacher
     const fetchUsers = async () => {
         try {
             const res = await axios.get(`${API_URL}/users/`);
             setAllUsers(res.data);
         } catch(e) { console.error(e); }
-    };
-
-    // --- STATE ДЛЯ РЕГИСТРАЦИИ ---
-    const [isRegistering, setIsRegistering] = useState(false);
-    const [regData, setRegData] = useState({
-        username: '', password: '', fio: '', role: 'student', group_number: '', gpa: ''
-    });
-
-    const handleRegister = async (e) => {
-        e.preventDefault();
-        try {
-            // 1. Регистрируем пользователя
-            await axios.post(`${API_URL}/register/`, regData);
-            alert('Регистрация успешна! Теперь войдите.');
-
-            // 2. Переключаем на форму входа и подставляем логин/пароль для удобства
-            setLoginData({ username: regData.username, password: regData.password });
-            setIsRegistering(false);
-        } catch (err) {
-            // Выводим ошибку (например, если такой юзер уже есть)
-            const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : 'Ошибка регистрации';
-            alert(errorMsg);
-        }
     };
 
     useEffect(() => {
@@ -408,7 +501,6 @@ function App() {
                 setSelectedProject(null);
             }
 
-            // Загружаем пользователей если роль teacher
             if (user.role === 'teacher') {
                 fetchUsers();
             }
@@ -431,18 +523,29 @@ function App() {
         } catch (err) { alert('Ошибка входа'); }
     };
 
-    // 3. Функция верификации
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.post(`${API_URL}/register/`, regData);
+            alert('Регистрация успешна! Теперь войдите.');
+            setLoginData({ username: regData.username, password: regData.password });
+            setIsRegistering(false);
+        } catch (err) {
+            const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : 'Ошибка регистрации';
+            alert(errorMsg);
+        }
+    };
+
     const handleVerifyStudent = async (studentId, gpa) => {
         try {
             await axios.post(`${API_URL}/users/${studentId}/verify_student/`, { gpa });
             alert('Студент верифицирован');
-            fetchUsers(); // Обновить список
+            fetchUsers();
         } catch (e) {
             alert('Ошибка');
         }
     };
 
-    // Логика AI генерации (вызывается из модалки)
     const handleAiGenerateLogic = async (prompt) => {
         if (!prompt.trim()) {
             alert('Введите идею проекта');
@@ -451,7 +554,7 @@ function App() {
         setIsAiLoading(true);
         try {
             const res = await axios.post(`${API_URL}/projects/generate_ai/`, { prompt });
-            return res.data; // Возвращаем JSON в компонент модалки
+            return res.data;
         } catch (err) {
             console.error(err);
             alert('Ошибка генерации');
@@ -461,29 +564,41 @@ function App() {
         }
     };
 
-    // Создание проекта (FormData приходит из модалки)
     const handleCreateProject = async (formDataPayload) => {
         try {
             await axios.post(`${API_URL}/projects/`, formDataPayload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            setIsCreateModalOpen(false); // Закрываем модалку
-            fetchProjects(); // Обновляем список
+            setIsCreateModalOpen(false);
+            fetchProjects();
         } catch (err) {
             alert('Ошибка создания проекта');
             console.error(err);
         }
     };
 
-    const handleJoin = async (id) => {
-        try { await axios.post(`${API_URL}/projects/${id}/join/`); fetchProjects(); }
-        catch (err) { alert(err.response?.data?.error || 'Ошибка'); }
+    // --- ЛОГИКА ЗАЯВОК ---
+    const handleApply = async (coverLetter, isDiploma) => {
+        try {
+            await axios.post(`${API_URL}/projects/${selectedProject.id}/apply/`, {
+                cover_letter: coverLetter,
+                is_diploma: isDiploma
+            });
+            setIsApplyModalOpen(false);
+            alert('Заявка отправлена!');
+            const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
+            setSelectedProject(res.data);
+        } catch (e) { alert(e.response?.data?.error || 'Ошибка'); }
     };
 
-    const handleLeave = async (id) => {
-        if (!confirm('Вы уверены?')) return;
-        try { await axios.post(`${API_URL}/projects/${id}/leave/`); fetchProjects(); }
-        catch (err) { alert('Ошибка'); }
+    const handleSignNDA = async () => {
+        if(!confirm('Подтверждаете, что вы ознакомились с NDA?')) return;
+        try {
+            await axios.post(`${API_URL}/projects/${selectedProject.id}/sign_nda/`);
+            const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
+            setSelectedProject(res.data);
+            alert('NDA Подписан! Доступы открыты.');
+        } catch (e) { alert('Ошибка'); }
     };
 
     const handleUpdateProfile = async (e) => {
@@ -496,11 +611,7 @@ function App() {
         fd.append('github', profileData.github);
 
         if (avatarFile) fd.append('avatar', avatarFile);
-
-        // Логика для файла резюме
-        if (profileData.resumeFile) {
-            fd.append('resume', profileData.resumeFile);
-        }
+        if (profileData.resumeFile) fd.append('resume', profileData.resumeFile);
 
         try {
             await axios.patch(`${API_URL}/users/${user.id}/`, fd, {
@@ -519,13 +630,18 @@ function App() {
     const getComplexityLabel = (c) => ({ easy: '🟢 Легкий', medium: '🟡 Средний', hard: '🔴 Сложный' }[c] || c);
     const getUrgencyLabel = (u) => ({ low: 'Спокойно', medium: 'Срочно', high: '🔥 Горит' }[u] || u);
 
-    // --- VIEWS ---
+    // --- РЕНДЕР ДЕТАЛЬНОЙ СТРАНИЦЫ ПРОЕКТА ---
+    const renderProjectDetail = () => {
+        if (!selectedProject) return null;
 
-    // 1. ДЕТАЛЬНАЯ СТРАНИЦА
-    if (selectedProject) {
+        // Определяем статус пользователя
+        const isCreator = selectedProject.creator?.id == user.id;
+        const isMentor = selectedProject.mentors?.some(m => m.id == user.id) || isCreator;
+        const myStatus = selectedProject.my_status; // 'pending', 'accepted', 'rejected', null
+
         return (
             <div className="container fade-in" style={{ paddingTop: 40, paddingBottom: 80 }}>
-                <button onClick={() => setSelectedProject(null)} className="btn-back">← Назад</button>
+                <button onClick={() => {setSelectedProject(null); fetchProjects();}} className="btn-back">← Назад</button>
                 <div className="project-detail-card">
                     {/* ГАЛЕРЕЯ */}
                     <div className="swiper-container-wrapper">
@@ -546,6 +662,8 @@ function App() {
                     {/* КОНТЕНТ */}
                     <div className="detail-content">
                         <div style={{ display: 'flex', gap: 10, marginBottom: 15, flexWrap: 'wrap' }}>
+                            {selectedProject.is_nda_required && <span className="badge" style={{background:'#FEE2E2', color:'#991B1B'}}>🔒 NDA Required</span>}
+                            {selectedProject.is_diploma_allowed && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF'}}>🎓 Диплом</span>}
                             <span className={`badge complexity-${selectedProject.complexity}`}>{getComplexityLabel(selectedProject.complexity)}</span>
                             <span className={`badge urgency-${selectedProject.urgency}`}>{getUrgencyLabel(selectedProject.urgency)}</span>
                             {selectedProject.match_score > 0 && user.role === 'student' && <span className="ai-match">Match {selectedProject.match_score}%</span>}
@@ -553,28 +671,89 @@ function App() {
 
                         <h1 className="detail-title">{selectedProject.title}</h1>
                         <div className="tech-row">
-                            {selectedProject.tech_stack.split(',').map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>)}
+                            {selectedProject.tech_stack?.split(',').map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>)}
                         </div>
+
+                        {/* --- БЛОК ДЕЙСТВИЙ ДЛЯ СТУДЕНТА --- */}
+                        {user.role === 'student' && (
+                            <div style={{margin: '20px 0', padding: 20, background: '#F0FDF4', borderRadius: 12, border: '1px solid #BBF7D0'}}>
+                                {!myStatus && (
+                                    <>
+                                        <h3>Хочешь в команду?</h3>
+                                        <button className="btn-primary" onClick={() => setIsApplyModalOpen(true)}>Подать заявку</button>
+                                    </>
+                                )}
+                                {myStatus === 'pending' && <h3 style={{color: '#D97706'}}>⏳ Ваша заявка на рассмотрении</h3>}
+                                {myStatus === 'rejected' && <h3 style={{color: '#DC2626'}}>❌ Заявка отклонена</h3>}
+
+                                {myStatus === 'accepted' && (
+                                    <>
+                                        <h3 style={{color: '#166534'}}>🎉 Вы в команде!</h3>
+                                        {/* Проверка NDA */}
+                                        {selectedProject.is_nda_required && !selectedProject.can_see_resources && (
+                                            <div style={{marginTop: 10, background: '#FFF7ED', padding: 15, borderRadius: 8, border: '1px solid #FED7AA'}}>
+                                                <p>⚠️ Чтобы получить доступ к репозиторию и задачам, необходимо подписать NDA.</p>
+                                                <button className="btn-primary" style={{background: '#EA580C'}} onClick={handleSignNDA}>✍️ Подписать NDA</button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                        {/* --- БЛОК РЕСУРСОВ (ССЫЛКИ) --- */}
+                        {selectedProject.can_see_resources && selectedProject.resources && selectedProject.resources.length > 0 && (
+                            <div style={{marginBottom: 30}}>
+                                <h3 className="section-title">🔐 Ресурсы проекта</h3>
+                                <div className="grid" style={{gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))'}}>
+                                    {selectedProject.resources.map(r => (
+                                        <a key={r.id} href={r.url} target="_blank" rel="noopener noreferrer" className="card" style={{textDecoration:'none', display:'flex', alignItems:'center', gap:10, padding:15}}>
+                                            <span style={{fontSize:24}}>🔗</span>
+                                            <span style={{fontWeight:'bold', color:'var(--text-primary)'}}>{r.title}</span>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- ВКЛАДКА МЕНТОРА: КАНДИДАТЫ --- */}
+                        {isMentor && (
+                            <div style={{marginTop: 40, borderTop: '2px solid #eee', paddingTop: 20}}>
+                                <h2>👨‍🏫 Управление командой</h2>
+                                <CandidatesManager projectId={selectedProject.id} />
+                            </div>
+                        )}
 
                         {/* Вставка HTML из редактора */}
                         <div className="rich-text-content ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: selectedProject.full_description || selectedProject.description }} />
 
                         <div className="team-section">
-                            <h3 className="section-title">Команда ({selectedProject.students_info.length}/{selectedProject.max_students})</h3>
+                            <h3 className="section-title">Команда ({selectedProject.students_info?.length || 0}/{selectedProject.max_students})</h3>
                             <div className="avatars-row">
-                                {selectedProject.students_info.map(s => (
+                                {selectedProject.students_info?.map(s => (
                                     <div key={s.id} className="avatar-with-name">
                                         <Avatar name={s.fio} url={s.avatar} size={48} />
-                                        <span>{s.fio.split(' ')[0]}</span>
+                                        <span>{s.fio?.split(' ')[0]}</span>
                                     </div>
                                 ))}
-                                {selectedProject.students_info.length === 0 && <span className="text-muted">Пока пусто...</span>}
+                                {(selectedProject.students_info?.length === 0 || !selectedProject.students_info) && <span className="text-muted">Пока пусто...</span>}
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <ApplicationModal
+                    isOpen={isApplyModalOpen}
+                    onClose={() => setIsApplyModalOpen(false)}
+                    onSubmit={handleApply}
+                />
             </div>
         );
+    };
+
+    // 1. ДЕТАЛЬНАЯ СТРАНИЦА
+    if (selectedProject) {
+        return renderProjectDetail();
     }
 
     // 2. ЛОГИН / РЕГИСТРАЦИЯ (UI)
@@ -703,7 +882,7 @@ function App() {
 
             <div className="container main-content fade-in">
 
-                {/* --- РЕНДЕР МОДАЛКИ (ВСЕГДА ЗДЕСЬ, НО ВИДНА ПО ISOPEN) --- */}
+                {/* --- РЕНДЕР МОДАЛКИ --- */}
                 <ProjectEditorModal
                     isOpen={isCreateModalOpen}
                     onClose={() => setIsCreateModalOpen(false)}
@@ -721,7 +900,6 @@ function App() {
                 {view === 'profile' && profileData && (
                     <div className="profile-container fade-in">
                         {!isEditingProfile ? (
-                            // === РЕЖИМ ПРОСМОТРА ===
                             <div className="profile-wrapper">
                                 {/* Верхняя карточка */}
                                 <div className="card profile-card">
@@ -775,7 +953,7 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Секция "О себе" (Резюме) */}
+                                {/* Секция "О себе" */}
                                 <div className="card" style={{ marginTop: 24, padding: 32 }}>
                                     <h3 style={{marginBottom: 20, borderBottom:'1px solid #eee', paddingBottom:10}}>Опыт и Резюме</h3>
                                     {profileData.about ? (
@@ -802,7 +980,7 @@ function App() {
                                                     </div>
                                                     <h4 style={{margin:'10px 0', fontSize:16}}>{p.title}</h4>
                                                     <div className="tech-row" style={{marginBottom:0}}>
-                                                        {p.tech_stack.split(',').slice(0,2).map((t,i) => <span key={i} className="tech-tag" style={{fontSize:10}}>{t}</span>)}
+                                                        {p.tech_stack?.split(',').slice(0,2).map((t,i) => <span key={i} className="tech-tag" style={{fontSize:10}}>{t}</span>)}
                                                     </div>
                                                 </div>
                                             ))}
@@ -848,8 +1026,6 @@ function App() {
                                         <label className="form-label">Прикрепить файл резюме (PDF/DOCX)</label>
                                         <div style={{display:'flex', gap:10, alignItems:'center'}}>
                                             <input type="file" onChange={e => {
-                                                // Добавляем файл в отдельный стейт, так как input file нельзя контроллировать value
-                                                // В handleUpdateProfile добавим логику отправки
                                                 setProfileData({...profileData, resumeFile: e.target.files[0]})
                                             }} className="form-input" style={{padding:8}} />
                                             {profileData.resume && <span style={{fontSize:12, color:'green'}}>✓ Файл уже загружен</span>}
@@ -869,7 +1045,7 @@ function App() {
                                             theme="snow"
                                             value={profileData.about || ''}
                                             onChange={(val) => setProfileData(prev => ({ ...prev, about: val }))}
-                                            style={{height: 200, marginBottom: 50}} // Отступ снизу для тулбара
+                                            style={{height: 200, marginBottom: 50}}
                                             placeholder="Расскажите о своем опыте, курсах и достижениях..."
                                         />
                                     </div>
@@ -898,32 +1074,32 @@ function App() {
 
                         <div className="grid">
                             {projects.map(p => {
-                                const isFull = p.students_info.length >= p.max_students;
+                                const isFull = p.students_info?.length >= p.max_students;
                                 return (
                                     <div key={p.id} className="card project-card">
                                         <div className="card-top">
                                             <div style={{ display: 'flex', gap: 5 }}>
+                                                {p.is_diploma_allowed && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF'}}>Диплом</span>}
+                                                {p.is_nda_required && <span className="badge" style={{background:'#FEE2E2', color:'#991B1B'}}>NDA</span>}
                                                 <span className={`badge complexity-${p.complexity}`}>{getComplexityLabel(p.complexity)}</span>
                                                 {p.match_score > 0 && user.role === 'student' && <span className="ai-match">Match {p.match_score}%</span>}
                                             </div>
-                                            <div className="team-count">👥 {p.students_info.length}/{p.max_students}</div>
+                                            <div className="team-count">👥 {p.students_info?.length || 0}/{p.max_students}</div>
                                         </div>
                                         <h2 onClick={() => setSelectedProject(p)}>{p.title}</h2>
-                                        <div className="tech-row">{p.tech_stack.split(',').slice(0, 3).map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>)}</div>
+                                        <div className="tech-row">{p.tech_stack?.split(',').slice(0, 3).map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>)}</div>
                                         <div className="description">{p.description}</div>
                                         <button onClick={() => setSelectedProject(p)} className="btn-details">Подробнее</button>
                                         <div className="card-footer">
                                             <div className="mentor-info">
-                                                <Avatar name={p.mentor_info.fio} url={p.mentor_info.avatar} size={24} />
-                                                <span className="mentor-name">{p.mentor_info.fio.split(' ')[0]}</span>
+                                                <Avatar name={p.mentor_info?.fio || p.creator?.fio} url={p.mentor_info?.avatar || p.creator?.avatar} size={24} />
+                                                <span className="mentor-name">{(p.mentor_info?.fio || p.creator?.fio)?.split(' ')[0]}</span>
                                             </div>
                                             <div className="action-block">
-                                                {user.role === 'student' && (
-                                                    p.is_joined ? (
-                                                        <button onClick={() => handleLeave(p.id)} className="btn-danger-outline">Выйти</button>
-                                                    ) : (!isFull && p.status === 'open' && (
-                                                        <button onClick={() => handleJoin(p.id)} className="btn-join-icon" title="Вступить">+</button>
-                                                    ))
+                                                {p.my_status === 'accepted' && <span className="status-badge" style={{background:'#DCFCE7', color:'green'}}>В команде</span>}
+                                                {p.my_status === 'pending' && <span className="status-badge" style={{background:'#FEF3C7', color:'orange'}}>Заявка</span>}
+                                                {user.role === 'student' && !p.my_status && !isFull && p.status === 'open' && (
+                                                    <button onClick={() => setSelectedProject(p)} className="btn-join-icon" title="Подать заявку">+</button>
                                                 )}
                                             </div>
                                         </div>
