@@ -604,10 +604,16 @@ function App() {
             let data = res.data;
 
             if (view === 'my') {
-                data = data.filter(p =>
-                    p.mentor_info?.id == user.id ||
-                    p.students_info?.some(s => s.id == user.id)
-                ).reverse();
+                data = data.filter(p => {
+                    // 1. Я Создатель?
+                    if (p.creator && p.creator.id == user.id) return true;
+                    // 2. Я Ментор (в списке менторов)?
+                    if (p.mentors && p.mentors.some(m => m.id == user.id)) return true;
+                    // 3. Я Студент (есть статус участия)?
+                    if (p.my_status !== null) return true;
+
+                    return false;
+                }).reverse();
             } else {
                 data.sort((a, b) => {
                     if (b.match_score !== a.match_score) return b.match_score - a.match_score;
@@ -774,15 +780,28 @@ function App() {
 
     // Логика фильтрации проектов для отображения
     const getDisplayedProjects = () => {
+        // 1. АРХИВ (Только завершенные и где я ментор/создатель)
         if (view === 'archive') {
-            // Показываем только завершенные/архивные И только мои (если я ментор)
-            return projects.filter(p => p.status === 'done' && p.creator.id == user.id);
+            return projects.filter(p =>
+                p.status === 'done' &&
+                (p.creator?.id == user.id || p.mentors?.some(m => m.id == user.id))
+            );
         }
+
+        // 2. МОИ ПРОЕКТЫ (Активные, где я как-то участвую)
         if (view === 'my') {
-            // Мои активные
-            return projects.filter(p => (p.mentor_info?.id == user.id || p.my_status) && p.status !== 'done');
+            return projects.filter(p => {
+                if (p.status === 'done') return false; // Убираем архивные
+
+                const isCreator = p.creator?.id == user.id;
+                const isMentor = p.mentors?.some(m => m.id == user.id);
+                const isParticipant = p.my_status !== null; // 'pending', 'accepted' и т.д.
+
+                return isCreator || isMentor || isParticipant;
+            });
         }
-        // Витрина: только активные
+
+        // 3. ВИТРИНА (Все активные)
         return projects.filter(p => p.status !== 'done');
     };
 
