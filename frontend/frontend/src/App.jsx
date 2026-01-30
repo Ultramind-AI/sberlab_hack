@@ -14,6 +14,63 @@ import 'swiper/css/pagination';
 const API_URL = 'http://127.0.0.1:8000/api';
 const MEDIA_URL = 'http://127.0.0.1:8000';
 
+// Компонент Панели Преподавателя
+const TeacherDashboard = ({ students, onVerify }) => {
+    // Фильтруем только студентов и только неподтвержденных
+    const pendingStudents = students.filter(u => u.role === 'student' && !u.is_verified);
+
+    return (
+        <div className="container fade-in" style={{marginTop: 40}}>
+            <h1 className="page-title">Кабинет Деканата / Преподавателя</h1>
+            <p className="text-secondary">Студентов на проверку: {pendingStudents.length}</p>
+
+            <div className="grid">
+                {pendingStudents.length === 0 && <p>Все студенты проверены! 🎉</p>}
+
+                {pendingStudents.map(s => (
+                    <div key={s.id} className="card">
+                        <div style={{display:'flex', gap:15, alignItems:'center', marginBottom:15}}>
+                            <Avatar name={s.fio} url={s.avatar} size={60} />
+                            <div>
+                                <h3 style={{margin:0}}>{s.fio}</h3>
+                                <div style={{fontSize:14, color:'#666'}}>Группа: {s.group_number || 'Не указана'}</div>
+                            </div>
+                        </div>
+
+                        <div style={{background:'#FEF2F2', padding:10, borderRadius:8, marginBottom:15, border:'1px solid #FECACA'}}>
+                            <span style={{color:'#991B1B', fontWeight:'bold'}}>⚠️ Не подтвержден</span>
+                        </div>
+
+                        <div style={{marginBottom:15}}>
+                            <label className="form-label">Заявленный средний балл:</label>
+                            <input
+                                className="form-input"
+                                type="number"
+                                step="0.1"
+                                defaultValue={s.gpa}
+                                id={`gpa-${s.id}`} // Чтобы найти значение при клике
+                            />
+                        </div>
+
+                        <div style={{display:'flex', gap:10}}>
+                            <button
+                                className="btn-primary"
+                                style={{width:'100%'}}
+                                onClick={() => {
+                                    const realGpa = document.getElementById(`gpa-${s.id}`).value;
+                                    onVerify(s.id, realGpa);
+                                }}
+                            >
+                                ✅ Подтвердить данные
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // --- КОМПОНЕНТ: АВАТАР ---
 const Avatar = ({ name, url, size = 32, bg = 'var(--sber-green)' }) => {
     if (url) {
@@ -259,10 +316,11 @@ function App() {
     });
 
     // --- STATE: UI & DATA ---
-    const [view, setView] = useState('all'); // 'all', 'my', 'profile'
+    const [view, setView] = useState('all'); // 'all', 'my', 'profile', 'teacher'
     const [projects, setProjects] = useState([]);
     const [profileData, setProfileData] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
+    const [allUsers, setAllUsers] = useState([]);
 
     // Модалки и формы
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -308,15 +366,54 @@ function App() {
         } catch (e) { console.error(e); }
     };
 
+    // 2. В fetchProjects/fetchProfile добавь загрузку юзеров, если роль teacher
+    const fetchUsers = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/users/`);
+            setAllUsers(res.data);
+        } catch(e) { console.error(e); }
+    };
+
+    // --- STATE ДЛЯ РЕГИСТРАЦИИ ---
+    const [isRegistering, setIsRegistering] = useState(false);
+    const [regData, setRegData] = useState({
+        username: '', password: '', fio: '', role: 'student', group_number: '', gpa: ''
+    });
+
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        try {
+            // 1. Регистрируем пользователя
+            await axios.post(`${API_URL}/register/`, regData);
+            alert('Регистрация успешна! Теперь войдите.');
+
+            // 2. Переключаем на форму входа и подставляем логин/пароль для удобства
+            setLoginData({ username: regData.username, password: regData.password });
+            setIsRegistering(false);
+        } catch (err) {
+            // Выводим ошибку (например, если такой юзер уже есть)
+            const errorMsg = err.response?.data ? JSON.stringify(err.response.data) : 'Ошибка регистрации';
+            alert(errorMsg);
+        }
+    };
+
     useEffect(() => {
         if (token) {
-            if (view === 'profile') fetchProfile();
-            else {
+            if (view === 'profile') {
+                fetchProfile();
+            } else if (view === 'teacher') {
+                fetchUsers();
+            } else {
                 fetchProjects();
                 setSelectedProject(null);
             }
+
+            // Загружаем пользователей если роль teacher
+            if (user.role === 'teacher') {
+                fetchUsers();
+            }
         }
-    }, [token, view]);
+    }, [token, view, user.role]);
 
     // --- ACTIONS ---
 
@@ -332,6 +429,17 @@ function App() {
             setUser({ id: user_id, role, fio });
             window.location.reload();
         } catch (err) { alert('Ошибка входа'); }
+    };
+
+    // 3. Функция верификации
+    const handleVerifyStudent = async (studentId, gpa) => {
+        try {
+            await axios.post(`${API_URL}/users/${studentId}/verify_student/`, { gpa });
+            alert('Студент верифицирован');
+            fetchUsers(); // Обновить список
+        } catch (e) {
+            alert('Ошибка');
+        }
     };
 
     // Логика AI генерации (вызывается из модалки)
@@ -386,13 +494,25 @@ function App() {
         fd.append('tech_stack', profileData.tech_stack);
         fd.append('telegram', profileData.telegram);
         fd.append('github', profileData.github);
+
         if (avatarFile) fd.append('avatar', avatarFile);
 
+        // Логика для файла резюме
+        if (profileData.resumeFile) {
+            fd.append('resume', profileData.resumeFile);
+        }
+
         try {
-            await axios.patch(`${API_URL}/users/${user.id}/`, fd);
+            await axios.patch(`${API_URL}/users/${user.id}/`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             setIsEditingProfile(false);
             fetchProfile();
-        } catch (e) { alert('Ошибка сохранения'); }
+            alert('Профиль обновлен!');
+        } catch (e) {
+            console.error(e);
+            alert('Ошибка сохранения');
+        }
     };
 
     // --- UTILS ---
@@ -457,7 +577,7 @@ function App() {
         );
     }
 
-    // 2. ЛОГИН
+    // 2. ЛОГИН / РЕГИСТРАЦИЯ (UI)
     if (!token) return (
         <div className="login-wrapper">
             <div className="login-card fade-up">
@@ -466,12 +586,95 @@ function App() {
                     <span className="login-x">✕</span>
                     <img src="/sber_logo.png" height="50" alt="Sber" />
                 </div>
-                <h2>SberLab Hackathon</h2>
-                <form onSubmit={handleLogin} className="login-form">
-                    <input placeholder="Логин" value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} className="form-input" />
-                    <input type="password" placeholder="Пароль" value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} className="form-input" />
-                    <button className="btn-primary btn-full">Войти</button>
-                </form>
+
+                <h2>{isRegistering ? 'Регистрация' : 'Вход в SberLab'}</h2>
+
+                {/* --- ФОРМА ВХОДА --- */}
+                {!isRegistering ? (
+                    <form onSubmit={handleLogin} className="login-form">
+                        <input
+                            placeholder="Логин"
+                            value={loginData.username}
+                            onChange={e => setLoginData({ ...loginData, username: e.target.value })}
+                            className="form-input"
+                        />
+                        <input
+                            type="password"
+                            placeholder="Пароль"
+                            value={loginData.password}
+                            onChange={e => setLoginData({ ...loginData, password: e.target.value })}
+                            className="form-input"
+                        />
+                        <button className="btn-primary btn-full">Войти</button>
+
+                        <div className="login-form-switch">
+                            Нет аккаунта? <span onClick={() => setIsRegistering(true)}>Зарегистрироваться</span>
+                        </div>
+                    </form>
+                ) : (
+                    /* --- ФОРМА РЕГИСТРАЦИИ --- */
+                    <form onSubmit={handleRegister} className="login-form">
+                        <input
+                            placeholder="Придумайте Логин *"
+                            required
+                            value={regData.username}
+                            onChange={e => setRegData({ ...regData, username: e.target.value })}
+                            className="form-input"
+                        />
+                        <input
+                            placeholder="ФИО (Полностью) *"
+                            required
+                            value={regData.fio}
+                            onChange={e => setRegData({ ...regData, fio: e.target.value })}
+                            className="form-input"
+                        />
+                        <input
+                            type="password"
+                            placeholder="Пароль *"
+                            required
+                            value={regData.password}
+                            onChange={e => setRegData({ ...regData, password: e.target.value })}
+                            className="form-input"
+                        />
+
+                        {/* Выбор роли */}
+                        <select
+                            className="form-input"
+                            value={regData.role}
+                            onChange={e => setRegData({ ...regData, role: e.target.value })}
+                        >
+                            <option value="student">🎓 Я Студент</option>
+                            <option value="mentor">💼 Я Ментор (Сбер)</option>
+                            <option value="teacher">🏫 Я Преподаватель</option>
+                        </select>
+
+                        {/* Поля только для студента */}
+                        {regData.role === 'student' && (
+                            <div className="fade-in row-fields">
+                                <input
+                                    placeholder="Группа (21203)"
+                                    value={regData.group_number}
+                                    onChange={e => setRegData({ ...regData, group_number: e.target.value })}
+                                    className="form-input"
+                                />
+                                <input
+                                    placeholder="Ср. балл (4.5)"
+                                    type="number"
+                                    step="0.1"
+                                    value={regData.gpa}
+                                    onChange={e => setRegData({ ...regData, gpa: e.target.value })}
+                                    className="form-input"
+                                />
+                            </div>
+                        )}
+
+                        <button className="btn-primary btn-full">Создать аккаунт</button>
+
+                        <div className="login-form-switch">
+                            Уже есть аккаунт? <span onClick={() => setIsRegistering(false)}>Войти</span>
+                        </div>
+                    </form>
+                )}
             </div>
         </div>
     );
@@ -489,6 +692,9 @@ function App() {
                     <nav className="nav-pills">
                         <button className={view === 'all' ? 'active' : ''} onClick={() => setView('all')}>Витрина</button>
                         <button className={view === 'my' ? 'active' : ''} onClick={() => setView('my')}>Мои проекты</button>
+                        {user.role === 'teacher' && (
+                            <button className={view === 'teacher' ? 'active' : ''} onClick={() => setView('teacher')}>🎓 Деканат</button>
+                        )}
                         <button className={view === 'profile' ? 'active' : ''} onClick={() => setView('profile')}>👤 Профиль</button>
                         <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="btn-logout">Выход</button>
                     </nav>
@@ -506,47 +712,170 @@ function App() {
                     handleAiGenerate={handleAiGenerateLogic}
                 />
 
+                {/* --- ПАНЕЛЬ ПРЕПОДАВАТЕЛЯ --- */}
+                {view === 'teacher' && (
+                    <TeacherDashboard students={allUsers} onVerify={handleVerifyStudent} />
+                )}
+
                 {/* --- ПРОФИЛЬ --- */}
                 {view === 'profile' && profileData && (
                     <div className="profile-container fade-in">
                         {!isEditingProfile ? (
-                            <div className="card profile-card">
-                                <div className="profile-header-bg"></div>
-                                <div className="profile-content">
-                                    <div className="profile-top-row">
-                                        <div className="profile-avatar-wrapper"><Avatar name={profileData.fio} url={profileData.avatar} size={120} /></div>
-                                        <button className="btn-secondary" onClick={() => setIsEditingProfile(true)}>✎ Редактировать</button>
+                            // === РЕЖИМ ПРОСМОТРА ===
+                            <div className="profile-wrapper">
+                                {/* Верхняя карточка */}
+                                <div className="card profile-card">
+                                    <div className="profile-header-bg"></div>
+                                    <div className="profile-content">
+                                        <div className="profile-top-row">
+                                            <div className="profile-avatar-wrapper">
+                                                <Avatar name={profileData.fio} url={profileData.avatar} size={120} />
+                                            </div>
+                                            <div style={{display:'flex', gap:10}}>
+                                                {profileData.resume && (
+                                                    <a href={profileData.resume.startsWith('http') ? profileData.resume : `${MEDIA_URL}${profileData.resume}`}
+                                                       target="_blank"
+                                                       className="btn-secondary"
+                                                       style={{textDecoration:'none', display:'flex', alignItems:'center', gap:5}}
+                                                       download
+                                                    >
+                                                        📄 Скачать резюме
+                                                    </a>
+                                                )}
+                                                <button className="btn-primary" onClick={() => setIsEditingProfile(true)}>✎ Редактировать</button>
+                                            </div>
+                                        </div>
+
+                                        <h1 className="profile-name">{profileData.fio}</h1>
+                                        <div className="profile-role">
+                                            {profileData.role === 'mentor' ? '🔥 Ментор СберЛаб' : '🎓 Студент НГУ'}
+                                        </div>
+
+                                        <div className="profile-links">
+                                            {profileData.telegram && (
+                                                <a href={`https://t.me/${profileData.telegram.replace('@', '')}`} target="_blank" className="social-link telegram" rel="noreferrer">
+                                                    ✈️ {profileData.telegram}
+                                                </a>
+                                            )}
+                                            {profileData.github && (
+                                                <a href={profileData.github} target="_blank" className="social-link github" rel="noreferrer">
+                                                    👾 GitHub
+                                                </a>
+                                            )}
+                                        </div>
+
+                                        <div className="profile-section">
+                                            <h3>Hard Skills</h3>
+                                            <div className="tech-row">
+                                                {profileData.tech_stack ? profileData.tech_stack.split(',').map((t, i) => (
+                                                    <span key={i} className="tech-tag">{t.trim()}</span>
+                                                )) : <span className="text-muted">Навыки не указаны</span>}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <h1 className="profile-name">{profileData.fio}</h1>
-                                    <div className="profile-role">{profileData.role === 'mentor' ? '🔥 Ментор' : '🎓 Студент'}</div>
-                                    <div className="profile-links">
-                                        {profileData.telegram && <a href={`https://t.me/${profileData.telegram.replace('@', '')}`} target="_blank" className="social-link telegram" rel="noreferrer">Telegram</a>}
-                                        {profileData.github && <a href={profileData.github} target="_blank" className="social-link github" rel="noreferrer">GitHub</a>}
-                                    </div>
-                                    <div className="profile-section">
-                                        <h3>Стек</h3>
-                                        <div className="tech-row">{profileData.tech_stack ? profileData.tech_stack.split(',').map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>) : '—'}</div>
-                                    </div>
-                                    <div className="profile-section"><h3>О себе</h3><p style={{ whiteSpace: 'pre-wrap' }}>{profileData.about}</p></div>
+                                </div>
+
+                                {/* Секция "О себе" (Резюме) */}
+                                <div className="card" style={{ marginTop: 24, padding: 32 }}>
+                                    <h3 style={{marginBottom: 20, borderBottom:'1px solid #eee', paddingBottom:10}}>Опыт и Резюме</h3>
+                                    {profileData.about ? (
+                                        <div className="rich-text-content ql-editor" style={{padding:0}} dangerouslySetInnerHTML={{ __html: profileData.about }} />
+                                    ) : (
+                                        <p className="text-muted">Информация не заполнена.</p>
+                                    )}
+                                </div>
+
+                                {/* Секция "История проектов" */}
+                                <div className="card" style={{ marginTop: 24, padding: 32 }}>
+                                    <h3 style={{marginBottom: 20}}>Портфолио проектов</h3>
+                                    {profileData.portfolio && profileData.portfolio.length > 0 ? (
+                                        <div className="portfolio-grid">
+                                            {profileData.portfolio.map(p => (
+                                                <div key={p.id} className="portfolio-item">
+                                                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:5}}>
+                                                        <span className={`badge status-badge ${p.status}`}>
+                                                            {p.status === 'done' ? 'Завершен' : p.status === 'in_progress' ? 'В работе' : 'Активен'}
+                                                        </span>
+                                                        <span className={`badge complexity-${p.complexity}`} style={{fontSize:10}}>
+                                                            {getComplexityLabel(p.complexity)}
+                                                        </span>
+                                                    </div>
+                                                    <h4 style={{margin:'10px 0', fontSize:16}}>{p.title}</h4>
+                                                    <div className="tech-row" style={{marginBottom:0}}>
+                                                        {p.tech_stack.split(',').slice(0,2).map((t,i) => <span key={i} className="tech-tag" style={{fontSize:10}}>{t}</span>)}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted">Пока нет участия в проектах.</p>
+                                    )}
                                 </div>
                             </div>
                         ) : (
+                            // === РЕЖИМ РЕДАКТИРОВАНИЯ ===
                             <div className="card edit-form-container">
-                                <h2 className="edit-form-header">Редактирование</h2>
+                                <h2 className="edit-form-header">Редактирование портфолио</h2>
                                 <form onSubmit={handleUpdateProfile} className="form-grid">
+                                    {/* Аватар */}
                                     <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-                                        <Avatar name={profileData.fio} url={profileData.avatar} size={64} />
-                                        <input type="file" onChange={e => setAvatarFile(e.target.files[0])} />
+                                        <Avatar name={profileData.fio} url={profileData.avatar} size={80} />
+                                        <div>
+                                            <label className="form-label">Фото профиля</label>
+                                            <input type="file" onChange={e => setAvatarFile(e.target.files[0])} className="form-input" style={{padding:8}} />
+                                        </div>
                                     </div>
-                                    <div><label className="form-label">ФИО</label><input className="form-input" value={profileData.fio} onChange={e => setProfileData({ ...profileData, fio: e.target.value })} /></div>
+
+                                    {/* Основные данные */}
+                                    <div>
+                                        <label className="form-label">ФИО</label>
+                                        <input className="form-input" value={profileData.fio} onChange={e => setProfileData({ ...profileData, fio: e.target.value })} />
+                                    </div>
+
                                     <div className="row-2-col">
-                                        <div><label className="form-label">Telegram</label><input className="form-input" value={profileData.telegram || ''} onChange={e => setProfileData({ ...profileData, telegram: e.target.value })} /></div>
-                                        <div><label className="form-label">GitHub</label><input className="form-input" value={profileData.github || ''} onChange={e => setProfileData({ ...profileData, github: e.target.value })} /></div>
+                                        <div style={{flex:1}}>
+                                            <label className="form-label">Telegram (@username)</label>
+                                            <input className="form-input" value={profileData.telegram || ''} onChange={e => setProfileData({ ...profileData, telegram: e.target.value })} />
+                                        </div>
+                                        <div style={{flex:1}}>
+                                            <label className="form-label">GitHub / Portfolio URL</label>
+                                            <input className="form-input" value={profileData.github || ''} onChange={e => setProfileData({ ...profileData, github: e.target.value })} />
+                                        </div>
                                     </div>
-                                    <div><label className="form-label">Стек</label><input className="form-input" value={profileData.tech_stack || ''} onChange={e => setProfileData({ ...profileData, tech_stack: e.target.value })} /></div>
-                                    <div><label className="form-label">О себе</label><textarea className="form-input" rows="4" value={profileData.about || ''} onChange={e => setProfileData({ ...profileData, about: e.target.value })} /></div>
-                                    <div style={{ display: 'flex', gap: 10 }}>
-                                        <button className="btn-primary">Сохранить</button>
+
+                                    {/* Резюме Файл */}
+                                    <div>
+                                        <label className="form-label">Прикрепить файл резюме (PDF/DOCX)</label>
+                                        <div style={{display:'flex', gap:10, alignItems:'center'}}>
+                                            <input type="file" onChange={e => {
+                                                // Добавляем файл в отдельный стейт, так как input file нельзя контроллировать value
+                                                // В handleUpdateProfile добавим логику отправки
+                                                setProfileData({...profileData, resumeFile: e.target.files[0]})
+                                            }} className="form-input" style={{padding:8}} />
+                                            {profileData.resume && <span style={{fontSize:12, color:'green'}}>✓ Файл уже загружен</span>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="form-label">Стек технологий (через запятую)</label>
+                                        <input className="form-input" value={profileData.tech_stack || ''} onChange={e => setProfileData({ ...profileData, tech_stack: e.target.value })} placeholder="Python, Django, React..." />
+                                        <small style={{color:'#666'}}>Используется AI для подбора задач</small>
+                                    </div>
+
+                                    {/* Rich Editor для "О себе" */}
+                                    <div>
+                                        <label className="form-label">О себе / Резюме (подробно)</label>
+                                        <ReactQuill
+                                            theme="snow"
+                                            value={profileData.about || ''}
+                                            onChange={(val) => setProfileData(prev => ({ ...prev, about: val }))}
+                                            style={{height: 200, marginBottom: 50}} // Отступ снизу для тулбара
+                                            placeholder="Расскажите о своем опыте, курсах и достижениях..."
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                                        <button className="btn-primary">Сохранить изменения</button>
                                         <button type="button" className="btn-secondary" onClick={() => setIsEditingProfile(false)}>Отмена</button>
                                     </div>
                                 </form>
@@ -556,7 +885,7 @@ function App() {
                 )}
 
                 {/* --- СПИСОК ПРОЕКТОВ --- */}
-                {view !== 'profile' && (
+                {view !== 'profile' && view !== 'teacher' && (
                     <>
                         <div className="page-header">
                             <h1 className="page-title">{view === 'all' ? 'Витрина проектов' : 'Мои проекты'}</h1>

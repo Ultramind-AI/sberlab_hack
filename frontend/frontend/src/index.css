@@ -792,3 +792,216 @@ button { font-family: inherit; }
     position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6); color: white;
     border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer;
 }
+
+.portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+}
+.portfolio-item {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    transition: 0.2s;
+}
+.portfolio-item:hover {
+    border-color: var(--sber-green);
+    transform: translateY(-2px);
+}
+
+/* --- LOGIN / REGISTER PAGE --- */
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top center, #e8f5e9 0%, var(--bg-page) 60%);
+    padding: 20px;
+}
+
+.login-card {
+    background: var(--bg-card);
+    padding: 40px;
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+}
+
+.login-card h2 {
+    margin: 24px 0 28px;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.login-logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 10px;
+    opacity: 0.9;
+}
+
+.login-x {
+    color: #D1D5DB;
+    font-weight: 300;
+    font-size: 24px;
+}
+
+.login-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+    font-size: 15px;
+}
+
+/* Форма входа/регистрации */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    text-align: left;
+}
+
+.login-form .form-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid #E5E7EB;
+    background: #F9FAFB;
+    color: var(--text-primary);
+    font-size: 15px;
+    transition: 0.2s;
+    outline: none;
+}
+
+.login-form .form-input:focus {
+    background: #fff;
+    border-color: var(--sber-green);
+    box-shadow: 0 0 0 3px rgba(33, 160, 56, 0.1);
+}
+
+.login-form .btn-primary {
+    margin-top: 8px;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    background: var(--sber-gradient);
+    color: white;
+    border: none;
+}
+
+.login-form .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(33, 160, 56, 0.3);
+}
+
+.login-form select.form-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 16px;
+    padding-right: 40px;
+    cursor: pointer;
+}
+
+/* Дополнительные поля для студента */
+.login-form .fade-in {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Ссылка переключения между входом и регистрацией */
+.login-form-switch {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.login-form-switch span {
+    color: var(--sber-green);
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.login-form-switch span:hover {
+    color: var(--sber-green-hover);
+    text-decoration: underline;
+}
+
+/* Поля в несколько колонок для регистрации студента */
+.login-form .row-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.login-form .row-fields .form-input {
+    width: 100%;
+}
+
+/* Responsive для маленьких экранов */
+@media screen and (max-width: 480px) {
+    .login-card {
+        padding: 30px 20px;
+        max-width: 100%;
+        margin: 0 16px;
+    }
+
+    .login-card h2 {
+        font-size: 24px;
+        margin: 20px 0 24px;
+    }
+
+    .login-form .row-fields {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .login-logos img {
+        height: 40px;
+    }
+
+    .login-x {
+        font-size: 20px;
+    }
+}
+
+/* Дополнительная адаптация для очень маленьких экранов */
+@media screen and (max-width: 360px) {
+    .login-card {
+        padding: 24px 16px;
+    }
+
+    .login-card h2 {
+        font-size: 22px;
+    }
+
+    .login-form .form-input {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+}
+
+/* Стили для состояния загрузки */
+.btn-loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-loading:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
