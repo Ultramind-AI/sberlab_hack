@@ -40,8 +40,6 @@
 
 ## 📐 Архитектура и Схемы
 
-> *Здесь будут расположены блок-схемы, описывающие логику работы системы.*
-
 ### 1. Архитектура приложения (Container Diagram)
 ```mermaid
 graph TD
@@ -72,9 +70,10 @@ graph TD
         DB[(🗄️ SQLite3 / File)]:::db
     end
 
+    %% Исправленный блок связей (добавлены кавычки)
     User -->|HTTP Request| Proxy
-    Proxy -->|/ (Root)| Static
-    Proxy -->|/api or /admin| API
+    Proxy -->|"/ (Root)"| Static
+    Proxy -->|"/api or /admin"| API
     Proxy -->|/media| Media
     
     API -->|Read/Write| DB
