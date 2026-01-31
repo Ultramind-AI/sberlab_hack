@@ -11,8 +11,185 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
 // --- НАСТРОЙКИ ---
-const API_URL = 'http://127.0.0.1:8000/api';
-const MEDIA_URL = 'http://127.0.0.1:8000';
+// const API_URL = 'http://127.0.0.1:8000/api';
+// const MEDIA_URL = 'http://127.0.0.1:8000';
+
+const API_URL = '/api';
+const MEDIA_URL = '';
+
+// --- КОМПОНЕНТ: МОДАЛКА ЗАВЕРШЕНИЯ ПРОЕКТА (С ОЦЕНКАМИ) ---
+const CompleteProjectModal = ({ project, isOpen, onClose, onSubmit }) => {
+    if (!isOpen || !project) return null;
+
+    // Берем только принятых студентов
+    const students = project.students_info || [];
+
+    const [reviews, setReviews] = useState({}); // { userId: { grade: 5, review: '' } }
+
+    const handleChange = (uid, field, val) => {
+        setReviews(prev => ({
+            ...prev,
+            [uid]: { ...prev[uid], [field]: val }
+        }));
+    };
+
+    const handleSubmit = () => {
+        const payload = Object.keys(reviews).map(uid => ({
+            user_id: uid,
+            grade: reviews[uid]?.grade || 5,
+            review: reviews[uid]?.review || ''
+        }));
+        onSubmit(payload);
+    };
+
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-window" onClick={e=>e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>🏁 Завершение проекта</h3>
+                    <button className="btn-close" onClick={onClose}>✕</button>
+                </div>
+                <div className="modal-body">
+                    <p>Оцените работу студентов перед закрытием проекта. Это пойдет в их портфолио.</p>
+
+                    <div style={{display:'flex', flexDirection:'column', gap:15, margin:'20px 0'}}>
+                        {students.map(s => (
+                            <div key={s.id} className="card" style={{padding:15}}>
+                                <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:10}}>
+                                    <Avatar name={s.fio} url={s.avatar} />
+                                    <b>{s.fio}</b>
+                                </div>
+                                <div style={{display:'flex', gap:20}}>
+                                    <div>
+                                        <label className="form-label">Оценка (1-5)</label>
+                                        <select
+                                            className="form-input"
+                                            onChange={e => handleChange(s.id, 'grade', e.target.value)}
+                                            defaultValue="5"
+                                        >
+                                            <option value="5">5 - Отлично</option>
+                                            <option value="4">4 - Хорошо</option>
+                                            <option value="3">3 - Нормально</option>
+                                            <option value="2">2 - Плохо</option>
+                                        </select>
+                                    </div>
+                                    <div style={{flex:1}}>
+                                        <label className="form-label">Отзыв</label>
+                                        <input
+                                            className="form-input"
+                                            placeholder="Коротко о работе студента..."
+                                            onChange={e => handleChange(s.id, 'review', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        {students.length === 0 && <p className="text-danger">В команде нет студентов!</p>}
+                    </div>
+
+                    <button className="btn-primary btn-full" onClick={handleSubmit}>Подтвердить и В Архив</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- КОМПОНЕНТ: HR DASHBOARD ---
+const HRDashboard = ({ onShowProfile }) => {
+    const [users, setUsers] = useState([]);
+    const [filterStack, setFilterStack] = useState('');
+    const [invited, setInvited] = useState({}); // Локальный стейт приглашений
+
+    useEffect(() => {
+        axios.get(`${API_URL}/users/`).then(res => setUsers(res.data.filter(u => u.role === 'student')));
+    }, []);
+
+    // Сортировка: GPA -> Кол-во проектов
+    const filtered = users
+        .filter(u => u.tech_stack.toLowerCase().includes(filterStack.toLowerCase()))
+        .sort((a, b) => b.gpa - a.gpa);
+
+    const handleInvite = (userId) => {
+        // Имитация отправки оффера
+        setInvited(prev => ({ ...prev, [userId]: true }));
+        alert('Приглашение на собеседование отправлено студенту на почту и в Telegram!');
+    };
+
+    return (
+        <div className="container fade-in" style={{marginTop: 40}}>
+            <h1 className="page-title">💼 Кадровый резерв (HR)</h1>
+            <p className="text-muted">Поиск лучших студентов для стажировок в СберЛаб</p>
+
+            <div style={{marginBottom:20, display:'flex', gap:10, alignItems:'center'}}>
+                <input
+                    className="form-input"
+                    placeholder="🔍 Фильтр по стеку (Python, Java, ML...)"
+                    value={filterStack}
+                    onChange={e => setFilterStack(e.target.value)}
+                    style={{maxWidth: 400}}
+                />
+                <div style={{color:'#666', fontSize:14}}>Найдено кандидатов: <b>{filtered.length}</b></div>
+            </div>
+
+            <div className="grid">
+                {filtered.map(u => (
+                    <div key={u.id} className="card" style={{display:'flex', flexDirection:'column'}}>
+                        <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
+                            <div style={{display:'flex', gap:12, alignItems:'center', cursor:'pointer'}} onClick={() => onShowProfile(u)}>
+                                <Avatar name={u.fio} url={u.avatar} size={56} />
+                                <div>
+                                    <b style={{fontSize:16}}>{u.fio}</b>
+                                    <div style={{fontSize:13, color:'#666'}}>{u.group_number || 'Группа не указана'}</div>
+                                </div>
+                            </div>
+                            <div style={{textAlign:'right'}}>
+                                <div style={{fontSize:20, fontWeight:'800', color: u.gpa >= 4.5 ? 'green' : '#374151'}}>{u.gpa}</div>
+                                <div style={{fontSize:10, fontWeight:700, color:'#9CA3AF'}}>GPA</div>
+                            </div>
+                        </div>
+
+                        <div style={{margin:'16px 0', flex:1}}>
+                            <div style={{fontSize:12, color:'#6B7280', marginBottom:4, fontWeight:600}}>СТЕК ТЕХНОЛОГИЙ</div>
+                            <div style={{fontSize:14}}>{u.tech_stack || '—'}</div>
+
+                            <div style={{marginTop:12, display:'flex', gap:15}}>
+                                <div>
+                                    <span style={{fontSize:12, color:'#6B7280', fontWeight:600}}>ПРОЕКТЫ</span>
+                                    <div style={{fontWeight:'bold'}}>{u.portfolio ? u.portfolio.length : 0}</div>
+                                </div>
+                                <div>
+                                    <span style={{fontSize:12, color:'#6B7280', fontWeight:600}}>РЕЙТИНГ</span>
+                                    {/* Считаем среднюю оценку */}
+                                    <div style={{fontWeight:'bold', color:'orange'}}>
+                                        ★ {u.portfolio && u.portfolio.length > 0
+                                        ? (u.portfolio.reduce((acc, p) => acc + (p.grade || 0), 0) / u.portfolio.length).toFixed(1)
+                                        : '-'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:'auto'}}>
+                            <button className="btn-secondary" style={{fontSize:13}} onClick={() => onShowProfile(u)}>
+                                👤 Досье
+                            </button>
+
+                            {invited[u.id] ? (
+                                <button className="btn-secondary" disabled style={{fontSize:13, background:'#DCFCE7', color:'#166534', borderColor:'transparent'}}>
+                                    ✓ Приглашен
+                                </button>
+                            ) : (
+                                <button className="btn-primary" style={{fontSize:13}} onClick={() => handleInvite(u.id)}>
+                                    💌 Нанять
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 // Компонент Панели Преподавателя
 const TeacherDashboard = ({ students, onVerify }) => {
@@ -101,114 +278,358 @@ const Avatar = ({ name, url, size = 32, bg = 'var(--sber-green)' }) => {
 // --- КОМПОНЕНТ: ПРОСМОТР ЧУЖОГО ПРОФИЛЯ (МОДАЛКА) ---
 const UserProfileModal = ({ user, onClose }) => {
     if (!user) return null;
+
     return (
-        <div className="modal-backdrop" onClick={onClose}>
-            <div className="modal-window" style={{maxWidth: 600, height:'auto'}} onClick={e=>e.stopPropagation()}>
-                <div className="modal-header"><h3>Карточка участника</h3><button className="btn-close" onClick={onClose}>✕</button></div>
-                <div className="modal-body">
-                    <div style={{display:'flex', gap:20, alignItems:'start'}}>
-                        <div style={{textAlign:'center'}}>
+        <div className="modal-backdrop" onClick={onClose} style={{zIndex: 3000}}>
+            <div className="modal-window" style={{ maxWidth: 800, height: 'auto', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>Карточка участника</h3>
+                    <button className="btn-close" onClick={onClose}>✕</button>
+                </div>
+
+                <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+
+                    {/* ВЕРХНЯЯ ЧАСТЬ: ИНФО */}
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                        <div style={{ textAlign: 'center', minWidth: 120 }}>
                             <Avatar name={user.fio} url={user.avatar} size={120} />
-                            <div className="badge" style={{marginTop:10, display:'inline-block'}}>{user.role}</div>
+                            <div className="badge" style={{ marginTop: 10, display: 'inline-block', fontSize: 12 }}>{user.role === 'student' ? 'Студент' : 'Ментор'}</div>
                         </div>
-                        <div style={{flex:1}}>
-                            <h2 style={{marginTop:0}}>{user.fio}</h2>
+
+                        <div style={{ flex: 1 }}>
+                            <h2 style={{ marginTop: 0, marginBottom: 10 }}>{user.fio}</h2>
 
                             {user.role === 'student' && (
-                                <div style={{display:'flex', gap:10, marginBottom:15}}>
-                                    <div style={{background:'#F3F4F6', padding:'5px 10px', borderRadius:6}}>⭐ GPA: <b>{user.gpa}</b></div>
-                                    <div style={{background:'#F3F4F6', padding:'5px 10px', borderRadius:6}}>📚 Группа: <b>{user.group_number}</b></div>
-                                    {user.is_verified && <span style={{color:'green', display:'flex', alignItems:'center'}}>✅ Verified</span>}
+                                <div style={{ display: 'flex', gap: 10, marginBottom: 15, flexWrap: 'wrap' }}>
+                                    <div style={{ background: '#F3F4F6', padding: '6px 12px', borderRadius: 8, fontSize: 13 }}>
+                                        🎓 GPA: <b style={{ color: user.gpa >= 4.5 ? 'green' : 'black' }}>{user.gpa}</b>
+                                    </div>
+                                    <div style={{ background: '#F3F4F6', padding: '6px 12px', borderRadius: 8, fontSize: 13 }}>
+                                        📚 Группа: <b>{user.group_number || '-'}</b>
+                                    </div>
+                                    {user.is_verified && (
+                                        <div style={{ background: '#DCFCE7', color: '#166534', padding: '6px 12px', borderRadius: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                            ✅ Данные подтверждены ВУЗом
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
-                            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:15}}>
-                                {user.telegram && <a href={`https://t.me/${user.telegram.replace('@','')}`} target="_blank" className="btn-secondary">✈️ Telegram</a>}
-                                {user.github && <a href={user.github} target="_blank" className="btn-secondary">👾 GitHub</a>}
-                                {user.resume && <a href={user.resume} target="_blank" className="btn-secondary">📄 Резюме</a>}
+                            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                                {user.resume && <a href={user.resume} target="_blank" className="btn-secondary" style={{ fontSize: 13 }}>📄 Скачать Резюме</a>}
+                                {user.telegram && <a href={`https://t.me/${user.telegram.replace('@', '')}`} target="_blank" className="btn-secondary" style={{ fontSize: 13 }}>✈️ Telegram</a>}
+                                {user.github && <a href={user.github} target="_blank" className="btn-secondary" style={{ fontSize: 13 }}>👾 GitHub</a>}
                             </div>
 
-                            <div style={{marginBottom:10}}>
+                            <div>
                                 <label className="mentor-label">Стек технологий</label>
-                                <div>{user.tech_stack || '-'}</div>
+                                <div style={{ fontSize: 14, fontWeight: 500 }}>{user.tech_stack || 'Не указан'}</div>
                             </div>
-
-                            {user.about && (
-                                <div>
-                                    <label className="mentor-label">О себе</label>
-                                    <p style={{fontSize:14, lineHeight:1.5}} dangerouslySetInnerHTML={{__html: user.about}}></p>
-                                </div>
-                            )}
                         </div>
                     </div>
+
+                    {/* НИЖНЯЯ ЧАСТЬ: ИСТОРИЯ ПРОЕКТОВ (ПОРТФОЛИО) */}
+                    {user.role === 'student' && (
+                        <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+                            <h3 style={{ marginBottom: 15 }}>📂 Портфолио проектов</h3>
+
+                            {user.portfolio && user.portfolio.length > 0 ? (
+                                <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 15 }}>
+                                    {user.portfolio.map(p => (
+                                        <div key={p.id} style={{ border: '1px solid #E5E7EB', borderRadius: 12, padding: 16, background: '#F9FAFB' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <span className={`status-badge ${p.status}`}>
+                                                    {p.status === 'done' ? 'Завершен' : p.status === 'in_progress' ? 'В работе' : 'Активен'}
+                                                </span>
+                                                {p.grade && <span style={{ fontWeight: 'bold', color: 'orange' }}>★ {p.grade}/5</span>}
+                                            </div>
+
+                                            <h4 style={{ margin: '0 0 8px 0', fontSize: 16 }}>{p.title}</h4>
+
+                                            <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>
+                                                {p.tech_stack}
+                                            </div>
+
+                                            {p.review && (
+                                                <div style={{ background: 'white', padding: 10, borderRadius: 8, fontSize: 13, fontStyle: 'italic', border: '1px solid #eee' }}>
+                                                    " {p.review} "
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-muted">Участия в проектах пока нет.</p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* О СЕБЕ */}
+                    {user.about && (
+                        <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+                            <h3 style={{ marginBottom: 10 }}>О себе</h3>
+                            <div className="rich-text-content ql-editor" style={{padding:0}} dangerouslySetInnerHTML={{ __html: user.about }} />
+                        </div>
+                    )}
+
                 </div>
             </div>
         </div>
     );
 };
 
-// --- КОМПОНЕНТ: ПАНЕЛЬ УПРАВЛЕНИЯ МЕНТОРА ---
+// --- УЛУЧШЕННАЯ ПАНЕЛЬ МЕНТОРА (КАПИТАНСКАЯ РУБКА) ---
 const MentorAdminPanel = ({ project, onUpdate }) => {
     const [resTitle, setResTitle] = useState('');
     const [resUrl, setResUrl] = useState('');
+    const [isResExpanded, setIsResExpanded] = useState(false);
 
-    const addResource = async () => { /* ...старый код... */ };
+    // Статусы для прогресс-бара
+    const steps = [
+        { key: 'open', label: '1. Набор команды', icon: '📢' },
+        { key: 'in_progress', label: '2. В работе', icon: '🔥' },
+        { key: 'done', label: '3. Завершен', icon: '🏁' }
+    ];
 
-    // Логика статусов
+    const currentStepIndex = steps.findIndex(s => s.key === project.status);
+
     const changeStatus = async (newStatus) => {
-        // Мы используем patch для смены статуса, либо кастомный action
-        // Для простоты используем patch (стандартный update)
+        if (newStatus === 'in_progress' && (!project.students_info || project.students_info.length === 0)) {
+            if (!confirm('Команда пуста! Точно начать работу?')) return;
+        }
         try {
-            const formData = new FormData();
-            formData.append('status', newStatus);
-            await axios.patch(`${API_URL}/projects/${project.id}/`, formData);
+            const fd = new FormData();
+            fd.append('status', newStatus);
+            await axios.patch(`${API_URL}/projects/${project.id}/`, fd);
             onUpdate();
         } catch(e) { alert('Ошибка'); }
     };
 
+    const addResource = async () => {
+        if(!resTitle || !resUrl) return alert('Заполните поля');
+        try {
+            await axios.post(`${API_URL}/projects/${project.id}/add_resource/`, { title: resTitle, url: resUrl });
+            setResTitle(''); setResUrl('');
+            onUpdate();
+            alert('Ресурс добавлен');
+        } catch(e) { alert('Ошибка'); }
+    };
+
     return (
-        <div style={{ background: '#F3F4F6', padding: 20, borderRadius: 12, marginTop: 30, border: '1px solid #E5E7EB' }}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
-                <h3>🛠 Панель управления</h3>
-                <div style={{display:'flex', gap:10}}>
+        <div style={{ background: '#fff', borderRadius: 16, marginTop: 30, boxShadow: '0 4px 20px rgba(0,0,0,0.05)', border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+            {/* 1. ЗАГОЛОВОК И СТАТУС-БАР */}
+            <div style={{ padding: '24px 24px 0 24px' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    🛠 Панель управления проектом
+                </h3>
+
+                {/* Visual Status Pipeline */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, position: 'relative' }}>
+                    {/* Линия фона */}
+                    <div style={{ position: 'absolute', top: 20, left: 0, right: 0, height: 4, background: '#F3F4F6', zIndex: 0 }}></div>
+
+                    {steps.map((step, index) => {
+                        const isActive = index <= currentStepIndex;
+                        const isCurrent = index === currentStepIndex;
+                        return (
+                            <div key={step.key} style={{ zIndex: 1, textAlign: 'center', opacity: isActive ? 1 : 0.5 }}>
+                                <div style={{
+                                    width: 40, height: 40, borderRadius: '50%',
+                                    background: isActive ? (isCurrent ? 'var(--sber-green)' : '#10B981') : '#E5E7EB',
+                                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    margin: '0 auto', fontSize: 18, border: isCurrent ? '4px solid #D1FAE5' : 'none',
+                                    transition: 'all 0.3s'
+                                }}>
+                                    {isActive ? '✓' : index + 1}
+                                </div>
+                                <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: isActive ? '#1F2937' : '#9CA3AF' }}>{step.label}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, borderTop: '1px solid #F3F4F6', marginTop: 24 }}>
+
+                {/* 2. ЛЕВАЯ КОЛОНКА: РЕСУРСЫ И НАСТРОЙКИ */}
+                <div>
+                    <h4 style={{marginTop:0}}>🔐 Доступы и Ресурсы</h4>
+                    <p className="text-muted" style={{fontSize:13}}>Ссылки для команды (Git, Jira, Drive). Видны только принятым.</p>
+
+                    {/* Список уже добавленных */}
+                    <div style={{display:'flex', flexWrap:'wrap', gap:8, marginBottom:15}}>
+                        {project.resources?.map(r => (
+                            <div key={r.id} style={{background:'#F3F4F6', padding:'4px 10px', borderRadius:6, fontSize:12, display:'flex', alignItems:'center', gap:5}}>
+                                🔗 <a href={r.url} target="_blank" style={{color:'#374151', fontWeight:600}}>{r.title}</a>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Форма добавления */}
+                    <div style={{background: '#F9FAFB', padding: 15, borderRadius: 10}}>
+                        <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                            <input className="form-input" style={{fontSize:13, padding:8}} placeholder="Название (напр. GitLab)" value={resTitle} onChange={e => setResTitle(e.target.value)} />
+                            <div style={{display:'flex', gap:5}}>
+                                <input className="form-input" style={{fontSize:13, padding:8}} placeholder="https://..." value={resUrl} onChange={e => setResUrl(e.target.value)} />
+                                <button className="btn-secondary" onClick={addResource} style={{padding:'0 15px'}}>ok</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. ПРАВАЯ КОЛОНКА: ДЕЙСТВИЯ (LIFECYCLE) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <h4 style={{marginTop:0}}>⚡️ Действия</h4>
+
                     {project.status === 'open' && (
-                        <button className="btn-primary" onClick={() => changeStatus('in_progress')}>▶️ Запустить в работу</button>
-                    )}
-                    {project.status === 'in_progress' && (
-                        <button className="btn-primary" style={{background:'#059669'}} onClick={() => changeStatus('done')}>🏁 Завершить проект</button>
+                        <button className="btn-primary" onClick={() => changeStatus('in_progress')} style={{ justifyContent: 'center', padding: 16, fontSize: 16 }}>
+                            🚀 <b>Запустить проект</b>
+                            <div style={{fontSize:11, fontWeight:400, opacity:0.8}}>Закрыть набор и начать работу</div>
+                        </button>
                     )}
 
-                    {/* Кнопка Архивации / Восстановления */}
-                    {project.status !== 'done' ? (
-                        <button className="btn-secondary" style={{color:'red'}} onClick={() => changeStatus('done')}>📁 В архив</button>
-                    ) : (
-                        <button className="btn-secondary" onClick={() => changeStatus('open')}>♻️ Восстановить</button>
+                    {project.status === 'in_progress' && (
+                        <div style={{background:'#ECFDF5', padding:15, borderRadius:10, border:'1px solid #A7F3D0', textAlign:'center'}}>
+                            <div style={{color:'#065F46', fontWeight:'bold', marginBottom:10}}>Проект в активной фазе</div>
+                            <button className="btn-primary" style={{width:'100%', background:'#059669'}} onClick={() => changeStatus('done')}>
+                                🏁 Завершить и оценить
+                            </button>
+                        </div>
+                    )}
+
+                    {project.status === 'done' && (
+                        <div style={{background:'#F3F4F6', padding:15, borderRadius:10, textAlign:'center'}}>
+                            <div style={{color:'#6B7280', marginBottom:10}}>Проект в архиве</div>
+                            <button className="btn-secondary" onClick={() => changeStatus('open')} style={{width:'100%'}}>♻️ Вернуть в работу</button>
+                        </div>
+                    )}
+
+                    {/* Кнопка Архива (если не завершен, но надо скрыть) */}
+                    {project.status !== 'done' && (
+                        <button className="btn-danger-outline" style={{marginTop:'auto'}} onClick={() => changeStatus('done')}>
+                            📂 Убрать в черновики (Архив)
+                        </button>
                     )}
                 </div>
             </div>
 
-            {/* Блок ресурсов показываем ТОЛЬКО если нужен NDA или проект уже в работе */}
-            {(project.is_nda_required || project.status === 'in_progress') && (
-                <div style={{ marginBottom: 20, background:'white', padding:15, borderRadius:8 }}>
-                    <h4 style={{marginTop:0}}>🔐 Управление доступами {project.is_nda_required && '(NDA)'}</h4>
-                    <p className="text-muted" style={{fontSize:13, marginBottom:10}}>
-                        Ссылки, добавленные здесь, увидят только принятые студенты {project.is_nda_required && 'подписавшие NDA'}.
-                    </p>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                        <input className="form-input" placeholder="Название (GitLab, Figma)" value={resTitle} onChange={e => setResTitle(e.target.value)} />
-                        <input className="form-input" placeholder="URL" value={resUrl} onChange={e => setResUrl(e.target.value)} />
-                        <button className="btn-secondary" onClick={addResource}>Добавить</button>
-                    </div>
+            {/* БЛОК ДИПЛОМА (ЕСЛИ ЕСТЬ) */}
+            {project.is_diploma_allowed && (
+                <div style={{background:'#EFF6FF', padding:'10px 24px', borderTop:'1px solid #BFDBFE', color:'#1E40AF', fontSize:13, display:'flex', justifyContent:'space-between'}}>
+                    <span>🎓 <b>Дипломный проект.</b> Научное обоснование заполнено.</span>
+                    <span style={{cursor:'pointer', textDecoration:'underline'}}>Редактировать</span>
                 </div>
             )}
+        </div>
+    );
+};
 
-            {/* Поле для Диплома */}
-            {project.is_diploma_allowed && (
-                <div style={{ marginBottom: 20, background:'white', padding:15, borderRadius:8 }}>
-                    <h4 style={{marginTop:0}}>🎓 Научное обоснование</h4>
-                    <p className="text-muted" style={{fontSize:13}}>Это увидят преподаватели ВУЗа.</p>
-                    <div style={{padding:10, background:'#f9f9f9', borderRadius:4, fontStyle:'italic'}}>
-                        {project.scientific_value || 'Не заполнено. Отредактируйте проект, чтобы добавить.'}
+// --- УЛУЧШЕННОЕ УПРАВЛЕНИЕ КОМАНДОЙ ---
+const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
+    const [candidates, setCandidates] = useState([]);
+
+    const fetchCandidates = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/projects/${projectId}/candidates/`);
+            setCandidates(res.data);
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => { if (projectId) fetchCandidates(); }, [projectId]);
+
+    const handleDecision = async (partId, action) => {
+        try {
+            await axios.post(`${API_URL}/projects/${projectId}/manage_candidate/${partId}/`, { action });
+            fetchCandidates();
+        } catch (e) { alert('Ошибка'); }
+    };
+
+    const handleKick = async (userId) => {
+        if(!confirm('Удалить студента?')) return;
+        try {
+            await axios.post(`${API_URL}/projects/${projectId}/kick_student/`, { student_id: userId });
+            fetchCandidates();
+        } catch (e) { alert('Ошибка'); }
+    };
+
+    const pending = candidates.filter(c => c.status === 'pending');
+    const team = candidates.filter(c => c.status === 'accepted');
+
+    // Генерируем слоты (занятые + пустые)
+    const slots = [];
+    for (let i = 0; i < maxStudents; i++) {
+        if (i < team.length) slots.push({ type: 'user', data: team[i] });
+        else slots.push({ type: 'empty' });
+    }
+
+    return (
+        <div style={{marginTop: 40}}>
+            <h3 className="section-title">👥 Состав команды ({team.length}/{maxStudents})</h3>
+
+            {/* ВИЗУАЛИЗАЦИЯ СЛОТОВ (Лобби) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 15, marginBottom: 40 }}>
+                {slots.map((slot, i) => (
+                    <div key={i} style={{
+                        height: 180, borderRadius: 12,
+                        border: slot.type === 'empty' ? '2px dashed #E5E7EB' : '1px solid #E5E7EB',
+                        background: slot.type === 'empty' ? '#F9FAFB' : '#fff',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        position: 'relative', transition: 'all 0.2s',
+                        boxShadow: slot.type === 'user' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
+                    }}>
+                        {slot.type === 'empty' ? (
+                            <div style={{color:'#9CA3AF', textAlign:'center'}}>
+                                <div style={{fontSize:24, marginBottom:5}}>◌</div>
+                                <div style={{fontSize:13, fontWeight:600}}>Свободное место</div>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{position:'absolute', top:10, right:10, cursor:'pointer', color:'#EF4444'}} onClick={()=>handleKick(slot.data.user.id)} title="Исключить">✕</div>
+                                <div onClick={()=>onShowProfile(slot.data.user)} style={{cursor:'pointer', textAlign:'center'}}>
+                                    <Avatar name={slot.data.user.fio} url={slot.data.user.avatar} size={64} />
+                                    <div style={{fontWeight:'bold', marginTop:10, fontSize:14}}>{slot.data.user.fio.split(' ')[0]}</div>
+                                    <div style={{fontSize:12, color:'gray'}}>{slot.data.user.fio.split(' ')[1]}</div>
+                                    <div style={{fontSize:11, background:'#F3F4F6', padding:'2px 8px', borderRadius:10, marginTop:5, display:'inline-block'}}>
+                                        GPA: {slot.data.user.gpa}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* СПИСОК ЗАЯВОК (INBOX) */}
+            {pending.length > 0 && (
+                <div style={{background:'#FFF7ED', border:'1px solid #FED7AA', borderRadius:16, padding:24}}>
+                    <h3 style={{marginTop:0, color:'#9A3412', display:'flex', alignItems:'center', gap:10}}>
+                        📬 Входящие заявки <span className="badge" style={{background:'#C2410C', color:'white'}}>{pending.length}</span>
+                    </h3>
+
+                    <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                        {pending.map(c => (
+                            <div key={c.id} style={{background:'white', padding:15, borderRadius:10, display:'flex', justifyContent:'space-between', alignItems:'start', boxShadow:'0 2px 4px rgba(0,0,0,0.02)'}}>
+                                <div style={{display:'flex', gap:15}}>
+                                    <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
+                                        <Avatar name={c.user.fio} url={c.user.avatar} size={48} />
+                                    </div>
+                                    <div>
+                                        <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                                            <b onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer', fontSize:16}}>{c.user.fio}</b>
+                                            {c.is_diploma_request && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF', fontSize:10}}>🎓 Диплом</span>}
+                                        </div>
+                                        <div style={{fontSize:13, color:'#666', marginTop:2}}>GPA: <b>{c.user.gpa}</b> • {c.user.tech_stack}</div>
+                                        <div style={{background:'#F9FAFB', padding:'8px 12px', borderRadius:8, marginTop:8, fontSize:13, fontStyle:'italic', color:'#4B5563'}}>
+                                            "{c.cover_letter}"
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                                    <button className="btn-primary" style={{fontSize:13, padding:'6px 15px'}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
+                                    <button className="btn-secondary" style={{fontSize:13, color:'red', borderColor:'#FECACA', background:'white'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
@@ -477,83 +898,116 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit }) => {
     );
 };
 
-// --- КОМПОНЕНТ УПРАВЛЕНИЯ КАНДИДАТАМИ (ОБНОВЛЕННЫЙ С "КИК") ---
-const CandidatesManager = ({ projectId, onShowProfile }) => {
-    const [candidates, setCandidates] = useState([]);
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
-    const fetchCandidates = async () => {
-        try {
-            const res = await axios.get(`${API_URL}/projects/${projectId}/candidates/`);
-            setCandidates(res.data);
-        } catch (e) { console.error(e); }
-    };
+const AnalyticsDashboard = ({ projects, users }) => {
+    // 1. Подготовка данных: Статусы проектов
+    const statusData = [
+        { name: 'Набор открыт', value: projects.filter(p => p.status === 'open').length, color: '#10B981' },
+        { name: 'В работе', value: projects.filter(p => p.status === 'in_progress').length, color: '#F59E0B' },
+        { name: 'Завершены', value: projects.filter(p => p.status === 'done').length, color: '#3B82F6' },
+    ];
 
-    useEffect(() => {
-        if (projectId) fetchCandidates();
-    }, [projectId]);
+    // 2. Подготовка данных: Топ технологий
+    const techCount = {};
+    projects.forEach(p => {
+        if (!p.tech_stack) return;
+        // Разбиваем строку "Python, React, AI" на массив, чистим и считаем
+        p.tech_stack.split(',').forEach(t => {
+            const tag = t.trim();
+            if (tag) techCount[tag] = (techCount[tag] || 0) + 1;
+        });
+    });
 
-    const handleDecision = async (partId, action) => {
-        try {
-            await axios.post(`${API_URL}/projects/${projectId}/manage_candidate/${partId}/`, { action });
-            fetchCandidates();
-        } catch (e) { alert(e.response?.data?.error || 'Ошибка'); }
-    };
+    // Превращаем в массив и берем Топ-5
+    const techData = Object.keys(techCount)
+        .map(key => ({ name: key, value: techCount[key] }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
 
-    const handleKick = async (userId) => {
-        if(!confirm('Удалить студента из команды?')) return;
-        try {
-            await axios.post(`${API_URL}/projects/${projectId}/kick_student/`, { student_id: userId });
-            fetchCandidates();
-        } catch (e) { alert('Ошибка'); }
-    };
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
-    // Разделяем на заявки и команду
-    const pending = candidates.filter(c => c.status === 'pending');
-    const team = candidates.filter(c => c.status === 'accepted');
+    // 3. KPI Метрики
+    const totalStudents = users.filter(u => u.role === 'student').length;
+    const activeProjects = projects.filter(p => p.status !== 'done').length;
+    const avgTeamSize = projects.length ? (projects.reduce((acc, p) => acc + (p.students_info?.length || 0), 0) / projects.length).toFixed(1) : 0;
 
     return (
-        <div style={{marginTop: 20}}>
-            {/* БЛОК КОМАНДЫ */}
-            <h4>Команда ({team.length})</h4>
-            <div className="grid" style={{gridTemplateColumns:'repeat(auto-fill, minmax(250px, 1fr))', marginBottom:20}}>
-                {team.map(c => (
-                    <div key={c.id} className="card" style={{padding:15, display:'flex', alignItems:'center', gap:10}}>
-                        <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
-                            <Avatar name={c.user.fio} url={c.user.avatar} size={40} />
-                        </div>
-                        <div style={{flex:1}}>
-                            <div style={{fontWeight:'bold', cursor:'pointer'}} onClick={()=>onShowProfile(c.user)}>{c.user.fio}</div>
-                            <div style={{fontSize:12, color:'gray'}}>GPA: {c.user.gpa || 'Нет данных'}</div>
-                        </div>
-                        <button className="btn-danger-outline" style={{padding:'5px 10px'}} onClick={()=>handleKick(c.user.id)}>✕</button>
-                    </div>
-                ))}
-                {team.length === 0 && <p className="text-muted">Команда пуста.</p>}
+        <div className="container fade-in" style={{ marginTop: 40 }}>
+            <h1 className="page-title">📊 Аналитика СберЛаб</h1>
+            <p className="text-muted">Дашборд эффективности лаборатории</p>
+
+            {/* KPI CARDS */}
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 40 }}>
+                <div className="card" style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ fontSize: 36, fontWeight: 'bold', color: 'var(--sber-green)' }}>{projects.length}</div>
+                    <div style={{ color: '#6B7280', fontSize: 14, fontWeight: 600 }}>Всего проектов</div>
+                </div>
+                <div className="card" style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ fontSize: 36, fontWeight: 'bold', color: '#3B82F6' }}>{totalStudents}</div>
+                    <div style={{ color: '#6B7280', fontSize: 14, fontWeight: 600 }}>Студентов в базе</div>
+                </div>
+                <div className="card" style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ fontSize: 36, fontWeight: 'bold', color: '#F59E0B' }}>{avgTeamSize}</div>
+                    <div style={{ color: '#6B7280', fontSize: 14, fontWeight: 600 }}>Ср. размер команды</div>
+                </div>
+                <div className="card" style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ fontSize: 36, fontWeight: 'bold', color: '#EF4444' }}>{activeProjects}</div>
+                    <div style={{ color: '#6B7280', fontSize: 14, fontWeight: 600 }}>Активных задач</div>
+                </div>
             </div>
 
-            {/* БЛОК ЗАЯВОК */}
-            <h4>Новые заявки ({pending.length})</h4>
-            {pending.map(c => (
-                <div key={c.id} className="card" style={{marginBottom: 10, borderLeft: '4px solid orange'}}>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-                        <div style={{display:'flex', gap: 10}}>
-                            <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
-                                <Avatar name={c.user.fio} url={c.user.avatar} />
-                            </div>
-                            <div>
-                                <b onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>{c.user.fio}</b>
-                                {c.is_diploma_request && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF', marginLeft:8}}>Хочет диплом</span>}
-                                <div style={{background:'#F9FAFB', padding:8, borderRadius:6, marginTop:5, fontSize:13}}>"{c.cover_letter}"</div>
-                            </div>
-                        </div>
-                        <div style={{display:'flex', flexDirection:'column', gap:5}}>
-                            <button className="btn-primary" style={{fontSize:12}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
-                            <button className="btn-secondary" style={{fontSize:12, color:'red'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
-                        </div>
+            {/* CHARTS */}
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 30 }}>
+
+                {/* График 1: Статусы */}
+                <div className="card" style={{ height: 400, display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ marginBottom: 20 }}>Воронка проектов</h3>
+                    <div style={{ flex: 1 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={statusData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" tick={{fontSize: 12}} />
+                                <YAxis allowDecimals={false} />
+                                <RechartsTooltip
+                                    contentStyle={{borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
+                                />
+                                <Bar dataKey="value" name="Количество" radius={[4, 4, 0, 0]}>
+                                    {statusData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
-            ))}
-            {pending.length === 0 && <p className="text-muted">Новых заявок нет.</p>}
+
+                {/* График 2: Технологии */}
+                <div className="card" style={{ height: 400, display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ marginBottom: 20 }}>Топ-5 Технологий (Спрос)</h3>
+                    <div style={{ flex: 1 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={techData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {techData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <RechartsTooltip />
+                                <Legend verticalAlign="bottom" height={36}/>
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -568,7 +1022,7 @@ function App() {
     });
 
     // --- STATE: UI & DATA ---
-    const [view, setView] = useState('all'); // 'all', 'my', 'profile', 'teacher'
+    const [view, setView] = useState('all'); // 'all', 'my', 'profile', 'teacher', 'hr', 'archive'
     const [projects, setProjects] = useState([]);
     const [profileData, setProfileData] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -579,6 +1033,8 @@ function App() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+    const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+    const [selectedProjectForCompletion, setSelectedProjectForCompletion] = useState(null);
 
     // Вход
     const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -639,17 +1095,18 @@ function App() {
     };
 
     useEffect(() => {
+        if (view === 'analytics') fetchUsers();
         if (token) {
             if (view === 'profile') {
                 fetchProfile();
-            } else if (view === 'teacher') {
+            } else if (view === 'teacher' || view === 'hr') {
                 fetchUsers();
             } else {
                 fetchProjects();
                 setSelectedProject(null);
             }
 
-            if (user.role === 'teacher') {
+            if (user.role === 'teacher' || user.role === 'hr') {
                 fetchUsers();
             }
         }
@@ -711,7 +1168,9 @@ function App() {
             setIsAiLoading(false);
         }
     };
-
+    const handleShowProfile = (user) => {
+        setViewedUser(user);
+    };
     const handleCreateProject = async (formDataPayload) => {
         try {
             await axios.post(`${API_URL}/projects/`, formDataPayload, {
@@ -722,6 +1181,35 @@ function App() {
         } catch (err) {
             alert('Ошибка создания проекта');
             console.error(err);
+        }
+    };
+
+    const handleCompleteProject = async (reviews) => {
+        try {
+            // Отправляем оценки
+            await axios.post(`${API_URL}/projects/${selectedProjectForCompletion.id}/complete/`, {
+                reviews: reviews
+            });
+
+            // Обновляем статус проекта в архив
+            await axios.patch(`${API_URL}/projects/${selectedProjectForCompletion.id}/`, {
+                status: 'done'
+            });
+
+            setIsCompleteModalOpen(false);
+            setSelectedProjectForCompletion(null);
+
+            // Обновляем данные
+            if (selectedProject) {
+                const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
+                setSelectedProject(res.data);
+            }
+            fetchProjects();
+
+            alert('Проект завершен с оценками!');
+        } catch (err) {
+            console.error(err);
+            alert('Ошибка при завершении проекта');
         }
     };
 
@@ -861,8 +1349,19 @@ function App() {
 
         return (
             <div className="container fade-in" style={{ paddingTop: 40, paddingBottom: 80 }}>
-                {/* МОДАЛКА ПРОФИЛЯ (ВСЕГДА В DOM, НО СКРЫТА) */}
+                {/* МОДАЛКА ПРОФИЛЯ */}
                 <UserProfileModal user={viewedUser} onClose={()=>setViewedUser(null)} />
+
+                {/* МОДАЛКА ЗАВЕРШЕНИЯ ПРОЕКТА */}
+                <CompleteProjectModal
+                    project={selectedProjectForCompletion}
+                    isOpen={isCompleteModalOpen}
+                    onClose={() => {
+                        setIsCompleteModalOpen(false);
+                        setSelectedProjectForCompletion(null);
+                    }}
+                    onSubmit={handleCompleteProject}
+                />
 
                 <button onClick={() => {setSelectedProject(null); fetchProjects();}} className="btn-back">← Назад</button>
                 <div className="project-detail-card">
@@ -951,33 +1450,19 @@ function App() {
                             </div>
                         )}
 
-                        {/* --- АДМИН ПАНЕЛЬ МЕНТОРА (НОВОЕ) --- */}
-                        {isMentor && (
-                            <MentorAdminPanel
-                                project={selectedProject}
-                                onUpdate={async () => {
-                                    // Обновляем данные проекта после изменений
-                                    const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
-                                    setSelectedProject(res.data);
-                                }}
-                            />
-                        )}
-
-                        {/* --- УПРАВЛЕНИЕ КОМАНДОЙ (ОБНОВЛЕННОЕ) --- */}
+                        {/* --- УПРАВЛЕНИЕ КОМАНДОЙ (ОБНОВЛЁННОЕ) --- */}
                         {isMentor && (
                             <div style={{marginTop: 40, borderTop: '2px solid #eee', paddingTop: 20}}>
-                                <h2>👨‍🏫 Управление командой</h2>
                                 <CandidatesManager
                                     projectId={selectedProject.id}
-                                    onShowProfile={(u) => setViewedUser(u)} // Открываем модалку
+                                    onShowProfile={(u) => setViewedUser(u)}
+                                    maxStudents={selectedProject.max_students}
                                 />
                             </div>
                         )}
 
                         {/* Вставка HTML из редактора */}
                         <div className="rich-text-content ql-editor" style={{ padding: 0 }} dangerouslySetInnerHTML={{ __html: selectedProject.full_description || selectedProject.description }} />
-
-
 
                         {/* БЛОК ВОПРОСОВ И ОТВЕТОВ */}
                         <ProjectComments
@@ -1009,8 +1494,6 @@ function App() {
         <div className="login-wrapper">
             <div className="login-card fade-up">
                 <div className="login-logos">
-                    <img src="/nsu_logo.svg" height="50" alt="NSU" />
-                    <span className="login-x">✕</span>
                     <img src="/sber_logo.png" height="50" alt="Sber" />
                 </div>
 
@@ -1073,6 +1556,7 @@ function App() {
                             <option value="student">🎓 Я Студент</option>
                             <option value="mentor">💼 Я Ментор (Сбер)</option>
                             <option value="teacher">🏫 Я Преподаватель</option>
+                            <option value="hr">💼 Я HR</option>
                         </select>
 
                         {/* Поля только для студента */}
@@ -1112,22 +1596,28 @@ function App() {
             <header className="glass-header">
                 <div className="container header-inner">
                     <div className="logos">
-                        <img src="/nsu_logo.svg" height="42" alt="NSU" />
-                        <span className="divider">✕</span>
                         <img src="/sber_logo.png" height="42" alt="Sber" />
                     </div>
                     <nav className="nav-pills">
-                        <button className={view==='all'?'active':''} onClick={()=>setView('all')}>Витрина</button>
-                        <button className={view==='my'?'active':''} onClick={()=>setView('my')}>Мои проекты</button>
+                        <button className={view==='all'?'active':''} onClick={()=>setView('all')}>🛠️ Витрина</button>
+                        <button className={view==='my'?'active':''} onClick={()=>setView('my')}> ❤️ Мои проекты</button>
 
                         {/* Вкладка Архива только для Ментора */}
                         {user.role === 'mentor' && (
                             <button className={view==='archive'?'active':''} onClick={()=>setView('archive')}>📁 Архив</button>
                         )}
 
+                        {/* HR Dashboard для менторов, преподавателей и HR */}
+                        {(user.role === 'teacher' || user.role === 'hr') && (
+                            <button className={view==='hr'?'active':''} onClick={()=>setView('hr')}>💼 HR</button>
+                        )}
+                        {(user.role === 'teacher' || user.role === 'hr' || user.role === 'mentor') && (
+                            <button className={view === 'analytics' ? 'active' : ''} onClick={() => setView('analytics')}>📊 Аналитика</button>
+                            )}
                         <button className={view==='profile'?'active':''} onClick={()=>setView('profile')}>👤 Профиль</button>
-                        {user.role === 'teacher' && <button onClick={()=>setView('teacher')}>🏫 Деканат</button>}
-                        <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="btn-logout">Выход</button>
+                        {user.role === 'teacher' && <button className={view==='teacher'?'active':''} onClick={()=>setView('teacher')}>🏫 Деканат</button>}
+                        <button onClick={()=>{localStorage.clear(); window.location.reload();}} className="btn-logout">➜] Выход</button>
+
                     </nav>
                 </div>
             </header>
@@ -1146,6 +1636,16 @@ function App() {
                 {/* --- ПАНЕЛЬ ПРЕПОДАВАТЕЛЯ --- */}
                 {view === 'teacher' && (
                     <TeacherDashboard students={allUsers} onVerify={handleVerifyStudent} />
+                )}
+
+                {/* --- АНАЛИТИКА --- */}
+                {view === 'analytics' && (
+                    <AnalyticsDashboard projects={projects} users={allUsers} />
+                )}
+
+                {/* --- HR DASHBOARD --- */}
+                {view === 'hr' && (
+                    <HRDashboard onShowProfile={(u) => setViewedUser(u)} />
                 )}
 
                 {/* --- ПРОФИЛЬ --- */}
@@ -1178,7 +1678,9 @@ function App() {
 
                                         <h1 className="profile-name">{profileData.fio}</h1>
                                         <div className="profile-role">
-                                            {profileData.role === 'mentor' ? '🔥 Ментор СберЛаб' : '🎓 Студент НГУ'}
+                                            {profileData.role === 'mentor' ? '🔥 Ментор СберЛаб' :
+                                                profileData.role === 'teacher' ? '🏫 Преподаватель' :
+                                                    profileData.role === 'hr' ? '💼 HR' : '🎓 Студент НГУ'}
                                         </div>
 
                                         <div className="profile-links">
@@ -1313,10 +1815,14 @@ function App() {
                 )}
 
                 {/* --- СПИСОК ПРОЕКТОВ --- */}
-                {view !== 'profile' && view !== 'teacher' && (
+                {view !== 'profile' && view !== 'teacher' && view !== 'hr' && (
                     <>
                         <div className="page-header">
-                            <h1 className="page-title">{view === 'all' ? 'Витрина проектов' : 'Мои проекты'}</h1>
+                            <h1 className="page-title">
+                                {view === 'all' ? 'Витрина проектов' :
+                                    view === 'my' ? 'Мои проекты' :
+                                        view === 'archive' ? 'Архив проектов' : 'Проекты'}
+                            </h1>
                             {user.role === 'mentor' && (
                                 <button className="btn-primary" onClick={() => setIsCreateModalOpen(true)}>
                                     + Создать задачу
@@ -1325,7 +1831,7 @@ function App() {
                         </div>
 
                         <div className="grid">
-                            {projects.map(p => {
+                            {displayedProjects.map(p => {
                                 const isFull = p.students_info?.length >= p.max_students;
                                 return (
                                     <div key={p.id} className="card project-card">
@@ -1336,9 +1842,9 @@ function App() {
                                                 <span className={`badge complexity-${p.complexity}`}>{getComplexityLabel(p.complexity)}</span>
                                                 {p.match_score > 0 && user.role === 'student' && <span className="ai-match">Match {p.match_score}%</span>}
                                             </div>
-                                            <div className="team-count">👥 {p.students_info?.length || 0}/{p.max_students}</div>
+                                            <div className="team-count">👥 {p.students_count || 0}/{p.max_students}</div>
                                         </div>
-                                        <h2 onClick={() => setSelectedProject(p)}>{p.title}</h2>
+                                        <h2 onClick={() => setSelectedProject(p)} style={{cursor:'pointer'}}>{p.title}</h2>
                                         <div className="tech-row">{p.tech_stack?.split(',').slice(0, 3).map((t, i) => <span key={i} className="tech-tag">{t.trim()}</span>)}</div>
                                         <div className="description">{p.description}</div>
                                         <button onClick={() => setSelectedProject(p)} className="btn-details">Подробнее</button>

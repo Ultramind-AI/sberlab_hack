@@ -218,3 +218,8 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# CSRF_TRUSTED_ORIGINS = [
+#     'http://localhost',
+#     'http://127.0.0.1',
+# ]

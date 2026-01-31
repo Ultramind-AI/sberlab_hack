@@ -22,6 +22,9 @@ GIGACHAT_CREDENTIALS = "MDE5YWM1ZGYtMTRlYy03NmVjLTllYzAtOTY4OGU3MGVkMjU5OjllZDEy
 
 
 class CustomAuthToken(ObtainAuthToken):
+    # authentication_classes = []  # Не использовать куки/сессии для этого вью
+    # permission_classes = [permissions.AllowAny]  # Разрешить всем
+
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -303,6 +306,29 @@ class ProjectViewSet(viewsets.ModelViewSet):
         project.status = 'open'
         project.save()
         return Response({'status': 'restored'})
+
+    @action(detail=True, methods=['post'])
+    def complete_project(self, request, pk=None):
+        project = self.get_object()
+        if request.user != project.creator and request.user not in project.mentors.all():
+            return Response({'error': 'Нет прав'}, status=403)
+
+        # Данные приходят в формате: { "reviews": [ {"user_id": 1, "grade": 5, "review": "Molodec"}, ... ] }
+        reviews_data = request.data.get('reviews', [])
+
+        for item in reviews_data:
+            try:
+                part = Participation.objects.get(project=project, user_id=item['user_id'], status='accepted')
+                part.grade = item['grade']
+                part.mentor_review = item['review']
+                part.status = 'completed'  # Меняем статус участия на "Завершил успешно"
+                part.save()
+            except Participation.DoesNotExist:
+                continue
+
+        project.status = 'done'
+        project.save()
+        return Response({'status': 'project completed'})
 
 
 class RegisterView(generics.CreateAPIView):
