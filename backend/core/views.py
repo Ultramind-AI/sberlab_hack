@@ -1,5 +1,7 @@
 import json
 import ast
+import re
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -22,8 +24,8 @@ GIGACHAT_CREDENTIALS = "MDE5YWM1ZGYtMTRlYy03NmVjLTllYzAtOTY4OGU3MGVkMjU5OjllZDEy
 
 
 class CustomAuthToken(ObtainAuthToken):
-    # authentication_classes = []  # Не использовать куки/сессии для этого вью
-    # permission_classes = [permissions.AllowAny]  # Разрешить всем
+    authentication_classes = []  # Не использовать куки/сессии для этого вью
+    permission_classes = [permissions.AllowAny]  # Разрешить всем
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
@@ -329,6 +331,64 @@ class ProjectViewSet(viewsets.ModelViewSet):
         project.status = 'done'
         project.save()
         return Response({'status': 'project completed'})
+
+
+    # --- AI АНАЛИЗ КАНДИДАТОВ ---
+    @action(detail=True, methods=['post'])
+    def analyze_candidates(self, request, pk=None):
+        project = self.get_object()
+        candidates = Participation.objects.filter(project=project, status='pending')
+
+        if not candidates.exists():
+            return Response({'error': 'Нет заявок для анализа'}, status=400)
+
+        candidates_list_str = ""
+        for p in candidates:
+            candidates_list_str += (
+                f"- ID {p.id}: {p.user.fio}, Стек: {p.user.tech_stack}, GPA: {p.user.gpa}, Письмо: {p.cover_letter}\n"
+            )
+
+        system_prompt = (
+            f"Ты — AI-рекрутер Сбера. Проанализируй кандидатов для проекта: {project.title}.\n"
+            f"Стек проекта: {project.tech_stack}.\n\n"
+            f"КАНДИДАТЫ:\n{candidates_list_str}\n"
+            "Верни СТРОГО JSON список объектов без лишнего текста, пояснений и ковычек кода.\n"
+            "Используй ДВОЙНЫЕ кавычки для ключей и значений.\n"
+            "Формат: [{\"id\": 1, \"score\": 85, \"reason\": \"Кратко почему\"}, ...]"
+        )
+
+        try:
+            giga = GigaChat(credentials=GIGACHAT_CREDENTIALS, verify_ssl_certs=False)
+            response = giga.chat(system_prompt)
+            content = response.choices[0].message.content
+
+            # --- УЛУЧШЕННАЯ ОЧИСТКА ---
+            # 1. Пытаемся найти всё, что находится внутри квадратных скобок [ ]
+            match = re.search(r'\[.*\]', content, re.DOTALL)
+            if match:
+                clean_json = match.group()
+            else:
+                # Если скобок нет, просто чистим от Markdown
+                clean_json = content.replace('```json', '').replace('```', '').strip()
+
+            # 2. Пытаемся распарсить
+            try:
+                analysis_data = json.loads(clean_json)
+            except json.JSONDecodeError:
+                # Если стандартный json упал, пробуем еще более агрессивную чистку
+                # (иногда ИИ ставит одинарные кавычки)
+                try:
+                    import ast
+                    analysis_data = ast.literal_eval(clean_json)
+                except:
+                    print(f"RAW CONTENT FROM AI: {content}")  # Для отладки в консоли
+                    raise ValueError("AI вернул нечитаемый формат")
+
+            return Response(analysis_data)
+
+        except Exception as e:
+            print(f"GigaChat Analysis Error: {e}")
+            return Response({'error': f'Ошибка AI: {str(e)}'}, status=500)
 
 
 class RegisterView(generics.CreateAPIView):

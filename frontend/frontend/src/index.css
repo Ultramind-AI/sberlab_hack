@@ -210,7 +210,7 @@ button { font-family: inherit; }
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 32px;
+    gap: 80px 32px;
 }
 
 .card {
@@ -1004,4 +1004,121 @@ button { font-family: inherit; }
 .btn-loading:hover {
     transform: none !important;
     box-shadow: none !important;
+}
+
+/* --- ADAPTATION FOR MOBILE & SQUARE SCREENS --- */
+
+/* 1. Адаптивная сетка для 2 колонок (заменяем inline styles в JS) */
+.responsive-col-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+/* 2. Логин на мобильных */
+@media screen and (max-width: 480px) {
+    .login-card {
+        width: 100% !important;
+        padding: 24px !important;
+        box-shadow: none; /* Убираем тяжелую тень на мобильном */
+    }
+    .login-wrapper {
+        padding: 16px;
+        align-items: flex-start; /* Поднимаем форму выше */
+        padding-top: 40px;
+    }
+}
+
+/* 3. Основная адаптация (Планшеты + Мобильные) */
+@media screen and (max-width: 900px) {
+    /* Навигация со скроллом (как в Instagram/приложениях) */
+    .nav-pills {
+        overflow-x: auto;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch; /* Плавный скролл iOS */
+        padding-bottom: 8px; /* Место для скроллбара */
+        width: 100%;
+    }
+
+    .nav-pills button {
+        flex: 0 0 auto; /* Не сжимать кнопки */
+        white-space: nowrap;
+    }
+
+    /* Скрываем скроллбар для красоты */
+    .nav-pills::-webkit-scrollbar { display: none; }
+
+    /* Сетка карточек в 1 колонку, если экран узкий */
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
+    /* Превращаем двойные колонки в одну (Профиль, Менторская панель) */
+    .responsive-col-2,
+    .row-2-col {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+    }
+
+    /* Модальные окна на весь экран */
+    .modal-window {
+        max-width: 100% !important;
+        height: 100% !important;
+        border-radius: 0 !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-body {
+        padding: 20px !important;
+    }
+
+    /* Скрываем/уменьшаем элементы в хедере */
+    .divider { display: none; }
+    .header-inner { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .logos img { height: 32px; }
+
+    /* Кнопка выхода */
+    .btn-logout {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* 4. Специально для Менторской панели (Stepper) */
+@media screen and (max-width: 768px) {
+    .mentor-steps-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    /* Линию прогресса поворачиваем или скрываем */
+    .mentor-steps-line {
+        width: 4px !important;
+        height: 100% !important;
+        left: 20px !important;
+        top: 0 !important;
+        bottom: 0 !important;
+    }
+
+    .mentor-step-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 100%;
+        text-align: left !important;
+        background: #fff;
+        z-index: 2;
+        padding: 5px 0;
+    }
+
+    .mentor-step-circle { margin: 0 !important; }
+    .mentor-step-label { margin-top: 0 !important; }
 }

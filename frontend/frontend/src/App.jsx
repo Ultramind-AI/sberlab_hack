@@ -11,11 +11,11 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
 // --- НАСТРОЙКИ ---
-// const API_URL = 'http://127.0.0.1:8000/api';
-// const MEDIA_URL = 'http://127.0.0.1:8000';
+const API_URL = 'http://127.0.0.1:8000/api';
+const MEDIA_URL = 'http://127.0.0.1:8000';
 
-const API_URL = '/api';
-const MEDIA_URL = '';
+// const API_URL = '/api';
+// const MEDIA_URL = '';
 
 // --- КОМПОНЕНТ: МОДАЛКА ЗАВЕРШЕНИЯ ПРОЕКТА (С ОЦЕНКАМИ) ---
 const CompleteProjectModal = ({ project, isOpen, onClose, onSubmit }) => {
@@ -379,10 +379,10 @@ const UserProfileModal = ({ user, onClose }) => {
 };
 
 // --- УЛУЧШЕННАЯ ПАНЕЛЬ МЕНТОРА (КАПИТАНСКАЯ РУБКА) ---
+// --- УЛУЧШЕННАЯ ПАНЕЛЬ МЕНТОРА (КАПИТАНСКАЯ РУБКА) - FIXED & MOBILE OPTIMIZED ---
 const MentorAdminPanel = ({ project, onUpdate }) => {
     const [resTitle, setResTitle] = useState('');
     const [resUrl, setResUrl] = useState('');
-    const [isResExpanded, setIsResExpanded] = useState(false);
 
     // Статусы для прогресс-бара
     const steps = [
@@ -420,77 +420,52 @@ const MentorAdminPanel = ({ project, onUpdate }) => {
             {/* 1. ЗАГОЛОВОК И СТАТУС-БАР */}
             <div style={{ padding: '24px 24px 0 24px' }}>
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    🛠 Панель управления проектом
+                    🛠 Панель управления
                 </h3>
 
-                {/* Visual Status Pipeline */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, position: 'relative' }}>
+                {/* Visual Status Pipeline (Responsive) */}
+                <div className="mentor-steps-wrapper" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, position: 'relative' }}>
                     {/* Линия фона */}
-                    <div style={{ position: 'absolute', top: 20, left: 0, right: 0, height: 4, background: '#F3F4F6', zIndex: 0 }}></div>
+                    <div className="mentor-steps-line" style={{ position: 'absolute', top: 20, left: 0, right: 0, height: 4, background: '#F3F4F6', zIndex: 0 }}></div>
 
                     {steps.map((step, index) => {
                         const isActive = index <= currentStepIndex;
                         const isCurrent = index === currentStepIndex;
                         return (
-                            <div key={step.key} style={{ zIndex: 1, textAlign: 'center', opacity: isActive ? 1 : 0.5 }}>
-                                <div style={{
+                            <div key={step.key} className="mentor-step-item" style={{ zIndex: 1, textAlign: 'center', opacity: isActive ? 1 : 0.5 }}>
+                                <div className="mentor-step-circle" style={{
                                     width: 40, height: 40, borderRadius: '50%',
                                     background: isActive ? (isCurrent ? 'var(--sber-green)' : '#10B981') : '#E5E7EB',
                                     color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     margin: '0 auto', fontSize: 18, border: isCurrent ? '4px solid #D1FAE5' : 'none',
-                                    transition: 'all 0.3s'
+                                    transition: 'all 0.3s', flexShrink: 0
                                 }}>
                                     {isActive ? '✓' : index + 1}
                                 </div>
-                                <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: isActive ? '#1F2937' : '#9CA3AF' }}>{step.label}</div>
+                                <div className="mentor-step-label" style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: isActive ? '#1F2937' : '#9CA3AF' }}>{step.label}</div>
                             </div>
                         );
                     })}
                 </div>
             </div>
 
-            <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, borderTop: '1px solid #F3F4F6', marginTop: 24 }}>
+            {/* 2. КОНТЕНТ (Сетка responsive-col-2) */}
+            <div className="responsive-col-2" style={{ padding: 24, borderTop: '1px solid #F3F4F6', marginTop: 24 }}>
 
-                {/* 2. ЛЕВАЯ КОЛОНКА: РЕСУРСЫ И НАСТРОЙКИ */}
-                <div>
-                    <h4 style={{marginTop:0}}>🔐 Доступы и Ресурсы</h4>
-                    <p className="text-muted" style={{fontSize:13}}>Ссылки для команды (Git, Jira, Drive). Видны только принятым.</p>
-
-                    {/* Список уже добавленных */}
-                    <div style={{display:'flex', flexWrap:'wrap', gap:8, marginBottom:15}}>
-                        {project.resources?.map(r => (
-                            <div key={r.id} style={{background:'#F3F4F6', padding:'4px 10px', borderRadius:6, fontSize:12, display:'flex', alignItems:'center', gap:5}}>
-                                🔗 <a href={r.url} target="_blank" style={{color:'#374151', fontWeight:600}}>{r.title}</a>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Форма добавления */}
-                    <div style={{background: '#F9FAFB', padding: 15, borderRadius: 10}}>
-                        <div style={{display:'flex', flexDirection:'column', gap:10}}>
-                            <input className="form-input" style={{fontSize:13, padding:8}} placeholder="Название (напр. GitLab)" value={resTitle} onChange={e => setResTitle(e.target.value)} />
-                            <div style={{display:'flex', gap:5}}>
-                                <input className="form-input" style={{fontSize:13, padding:8}} placeholder="https://..." value={resUrl} onChange={e => setResUrl(e.target.value)} />
-                                <button className="btn-secondary" onClick={addResource} style={{padding:'0 15px'}}>ok</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 3. ПРАВАЯ КОЛОНКА: ДЕЙСТВИЯ (LIFECYCLE) */}
+                {/* БЛОК 1: ДЕЙСТВИЯ (Теперь идет первым, чтобы на мобильном был сверху) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <h4 style={{marginTop:0}}>⚡️ Действия</h4>
 
                     {project.status === 'open' && (
-                        <button className="btn-primary" onClick={() => changeStatus('in_progress')} style={{ justifyContent: 'center', padding: 16, fontSize: 16 }}>
+                        <button className="btn-primary" onClick={() => changeStatus('in_progress')} style={{ justifyContent: 'center', padding: 16 }}>
                             🚀 <b>Запустить проект</b>
-                            <div style={{fontSize:11, fontWeight:400, opacity:0.8}}>Закрыть набор и начать работу</div>
+                            <div style={{fontSize:11, fontWeight:400, opacity:0.8}}>Закрыть набор и начать</div>
                         </button>
                     )}
 
                     {project.status === 'in_progress' && (
                         <div style={{background:'#ECFDF5', padding:15, borderRadius:10, border:'1px solid #A7F3D0', textAlign:'center'}}>
-                            <div style={{color:'#065F46', fontWeight:'bold', marginBottom:10}}>Проект в активной фазе</div>
+                            <div style={{color:'#065F46', fontWeight:'bold', marginBottom:10}}>Проект в работе</div>
                             <button className="btn-primary" style={{width:'100%', background:'#059669'}} onClick={() => changeStatus('done')}>
                                 🏁 Завершить и оценить
                             </button>
@@ -499,39 +474,67 @@ const MentorAdminPanel = ({ project, onUpdate }) => {
 
                     {project.status === 'done' && (
                         <div style={{background:'#F3F4F6', padding:15, borderRadius:10, textAlign:'center'}}>
-                            <div style={{color:'#6B7280', marginBottom:10}}>Проект в архиве</div>
+                            <div style={{color:'#6B7280', marginBottom:10}}>В архиве</div>
                             <button className="btn-secondary" onClick={() => changeStatus('open')} style={{width:'100%'}}>♻️ Вернуть в работу</button>
                         </div>
                     )}
 
-                    {/* Кнопка Архива (если не завершен, но надо скрыть) */}
+                    {/* КНОПКА АРХИВА (Вернул на место) */}
                     {project.status !== 'done' && (
-                        <button className="btn-danger-outline" style={{marginTop:'auto'}} onClick={() => changeStatus('done')}>
+                        <button className="btn-danger-outline" style={{marginTop:'auto', textAlign:'center'}} onClick={() => changeStatus('done')}>
                             📂 Убрать в черновики (Архив)
                         </button>
                     )}
                 </div>
+
+                {/* БЛОК 2: РЕСУРСЫ (На мобильном будет вторым) */}
+                <div>
+                    <h4 style={{marginTop:0}}>🔐 Доступы и Ресурсы</h4>
+                    <p className="text-muted" style={{fontSize:13}}>Ссылки для команды (Git, Jira, Drive).</p>
+
+                    <div style={{display:'flex', flexWrap:'wrap', gap:8, marginBottom:15}}>
+                        {project.resources?.map(r => (
+                            <div key={r.id} style={{background:'#F3F4F6', padding:'4px 10px', borderRadius:6, fontSize:12, display:'flex', alignItems:'center', gap:5}}>
+                                🔗 <a href={r.url} target="_blank" style={{color:'#374151', fontWeight:600}}>{r.title}</a>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{background: '#F9FAFB', padding: 15, borderRadius: 10}}>
+                        <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                            <input className="form-input" style={{fontSize:13, padding:8}} placeholder="Название (GitLab)" value={resTitle} onChange={e => setResTitle(e.target.value)} />
+                            <div style={{display:'flex', gap:5}}>
+                                <input className="form-input" style={{fontSize:13, padding:8}} placeholder="URL..." value={resUrl} onChange={e => setResUrl(e.target.value)} />
+                                <button className="btn-secondary" onClick={addResource} style={{padding:'0 15px'}}>ok</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            {/* БЛОК ДИПЛОМА (ЕСЛИ ЕСТЬ) */}
             {project.is_diploma_allowed && (
-                <div style={{background:'#EFF6FF', padding:'10px 24px', borderTop:'1px solid #BFDBFE', color:'#1E40AF', fontSize:13, display:'flex', justifyContent:'space-between'}}>
-                    <span>🎓 <b>Дипломный проект.</b> Научное обоснование заполнено.</span>
-                    <span style={{cursor:'pointer', textDecoration:'underline'}}>Редактировать</span>
+                <div style={{background:'#EFF6FF', padding:'10px 24px', borderTop:'1px solid #BFDBFE', color:'#1E40AF', fontSize:13}}>
+                    🎓 Дипломный проект
                 </div>
             )}
         </div>
     );
 };
 
-// --- УЛУЧШЕННОЕ УПРАВЛЕНИЕ КОМАНДОЙ ---
+// --- УПРАВЛЕНИЕ КОМАНДОЙ + AI ANALYSIS ---
 const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
     const [candidates, setCandidates] = useState([]);
+
+    // Новые стейты для AI
+    const [aiResults, setAiResults] = useState(null); // { id: { score: 95, reason: "..." } }
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     const fetchCandidates = async () => {
         try {
             const res = await axios.get(`${API_URL}/projects/${projectId}/candidates/`);
             setCandidates(res.data);
+            setAiResults(null); // Сбрасываем анализ при обновлении данных
         } catch (e) { console.error(e); }
     };
 
@@ -552,10 +555,35 @@ const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
         } catch (e) { alert('Ошибка'); }
     };
 
+    // ФУНКЦИЯ ЗАПУСКА АНАЛИЗА
+    const runAiAnalysis = async () => {
+        if (pending.length === 0) return alert('Нет новых заявок для анализа');
+        setIsAnalyzing(true);
+        try {
+            const res = await axios.post(`${API_URL}/projects/${projectId}/analyze_candidates/`);
+            // Превращаем массив [{id, score, reason}] в объект {id: {score, reason}} для быстрого доступа
+            const resultsMap = {};
+            res.data.forEach(item => {
+                resultsMap[item.id] = item;
+            });
+            setAiResults(resultsMap);
+        } catch (e) {
+            console.error(e);
+            alert('Ошибка AI анализа');
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
     const pending = candidates.filter(c => c.status === 'pending');
     const team = candidates.filter(c => c.status === 'accepted');
 
-    // Генерируем слоты (занятые + пустые)
+    // Если есть AI результаты, сортируем заявки по score
+    const displayedPending = aiResults
+        ? [...pending].sort((a, b) => (aiResults[b.id]?.score || 0) - (aiResults[a.id]?.score || 0))
+        : pending;
+
+    // Генерируем слоты команды
     const slots = [];
     for (let i = 0; i < maxStudents; i++) {
         if (i < team.length) slots.push({ type: 'user', data: team[i] });
@@ -566,7 +594,7 @@ const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
         <div style={{marginTop: 40}}>
             <h3 className="section-title">👥 Состав команды ({team.length}/{maxStudents})</h3>
 
-            {/* ВИЗУАЛИЗАЦИЯ СЛОТОВ (Лобби) */}
+            {/* СЛОТЫ (Лобби) */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 15, marginBottom: 40 }}>
                 {slots.map((slot, i) => (
                     <div key={i} style={{
@@ -574,8 +602,7 @@ const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
                         border: slot.type === 'empty' ? '2px dashed #E5E7EB' : '1px solid #E5E7EB',
                         background: slot.type === 'empty' ? '#F9FAFB' : '#fff',
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        position: 'relative', transition: 'all 0.2s',
-                        boxShadow: slot.type === 'user' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
+                        position: 'relative', boxShadow: slot.type === 'user' ? '0 4px 12px rgba(0,0,0,0.05)' : 'none'
                     }}>
                         {slot.type === 'empty' ? (
                             <div style={{color:'#9CA3AF', textAlign:'center'}}>
@@ -584,11 +611,10 @@ const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
                             </div>
                         ) : (
                             <>
-                                <div style={{position:'absolute', top:10, right:10, cursor:'pointer', color:'#EF4444'}} onClick={()=>handleKick(slot.data.user.id)} title="Исключить">✕</div>
+                                <div style={{position:'absolute', top:10, right:10, cursor:'pointer', color:'#EF4444'}} onClick={()=>handleKick(slot.data.user.id)}>✕</div>
                                 <div onClick={()=>onShowProfile(slot.data.user)} style={{cursor:'pointer', textAlign:'center'}}>
                                     <Avatar name={slot.data.user.fio} url={slot.data.user.avatar} size={64} />
                                     <div style={{fontWeight:'bold', marginTop:10, fontSize:14}}>{slot.data.user.fio.split(' ')[0]}</div>
-                                    <div style={{fontSize:12, color:'gray'}}>{slot.data.user.fio.split(' ')[1]}</div>
                                     <div style={{fontSize:11, background:'#F3F4F6', padding:'2px 8px', borderRadius:10, marginTop:5, display:'inline-block'}}>
                                         GPA: {slot.data.user.gpa}
                                     </div>
@@ -599,37 +625,73 @@ const CandidatesManager = ({ projectId, onShowProfile, maxStudents }) => {
                 ))}
             </div>
 
-            {/* СПИСОК ЗАЯВОК (INBOX) */}
+            {/* ЗАЯВКИ + AI КНОПКА */}
             {pending.length > 0 && (
                 <div style={{background:'#FFF7ED', border:'1px solid #FED7AA', borderRadius:16, padding:24}}>
-                    <h3 style={{marginTop:0, color:'#9A3412', display:'flex', alignItems:'center', gap:10}}>
-                        📬 Входящие заявки <span className="badge" style={{background:'#C2410C', color:'white'}}>{pending.length}</span>
-                    </h3>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+                        <h3 style={{marginTop:0, color:'#9A3412', display:'flex', alignItems:'center', gap:10}}>
+                            📬 Входящие заявки <span className="badge" style={{background:'#C2410C', color:'white'}}>{pending.length}</span>
+                        </h3>
+
+                        {/* КНОПКА AI */}
+                        <button
+                            className="btn-primary"
+                            style={{background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', border:'none', boxShadow:'0 4px 15px rgba(168, 85, 247, 0.4)'}}
+                            onClick={runAiAnalysis}
+                            disabled={isAnalyzing}
+                        >
+                            {isAnalyzing ? 'Думаю...' : '🤖 AI Анализ кандидатов'}
+                        </button>
+                    </div>
 
                     <div style={{display:'flex', flexDirection:'column', gap:10}}>
-                        {pending.map(c => (
-                            <div key={c.id} style={{background:'white', padding:15, borderRadius:10, display:'flex', justifyContent:'space-between', alignItems:'start', boxShadow:'0 2px 4px rgba(0,0,0,0.02)'}}>
-                                <div style={{display:'flex', gap:15}}>
-                                    <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
-                                        <Avatar name={c.user.fio} url={c.user.avatar} size={48} />
+                        {displayedPending.map(c => {
+                            const aiData = aiResults ? aiResults[c.id] : null;
+                            return (
+                                <div key={c.id} style={{background:'white', padding:15, borderRadius:10, display:'flex', justifyContent:'space-between', alignItems:'start', boxShadow:'0 2px 4px rgba(0,0,0,0.02)', border: aiData && aiData.score > 80 ? '2px solid #86EFAC' : '1px solid #eee'}}>
+                                    <div style={{display:'flex', gap:15, flex:1}}>
+                                        <div onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer'}}>
+                                            <Avatar name={c.user.fio} url={c.user.avatar} size={48} />
+                                            {/* AI SCORE BADGE */}
+                                            {aiData && (
+                                                <div style={{
+                                                    marginTop:5, textAlign:'center', fontWeight:'bold', fontSize:12,
+                                                    background: aiData.score > 75 ? '#DCFCE7' : aiData.score > 40 ? '#FEF9C3' : '#FEE2E2',
+                                                    color: aiData.score > 75 ? '#166534' : aiData.score > 40 ? '#854D0E' : '#991B1B',
+                                                    padding:'2px 0', borderRadius:4
+                                                }}>
+                                                    {aiData.score}%
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{flex:1}}>
+                                            <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
+                                                <b onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer', fontSize:16}}>{c.user.fio}</b>
+                                                {c.is_diploma_request && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF', fontSize:10}}>🎓 Диплом</span>}
+                                                {aiData && <span style={{fontSize:11, color:'#6B7280'}}>✨ AI Рекомендация</span>}
+                                            </div>
+
+                                            <div style={{fontSize:13, color:'#666', marginTop:2}}>GPA: <b>{c.user.gpa}</b> • {c.user.tech_stack}</div>
+
+                                            <div style={{background:'#F9FAFB', padding:'8px 12px', borderRadius:8, marginTop:8, fontSize:13, fontStyle:'italic', color:'#4B5563'}}>
+                                                "{c.cover_letter}"
+                                            </div>
+
+                                            {/* AI REASON BLOCK */}
+                                            {aiData && (
+                                                <div style={{marginTop:8, fontSize:13, color:'#4B5563', background: '#F0FDFA', padding: 8, borderRadius: 6, border: '1px solid #CCFBF1', display:'flex', gap:5}}>
+                                                    <span>🤖</span> <span>{aiData.reason}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                                            <b onClick={()=>onShowProfile(c.user)} style={{cursor:'pointer', fontSize:16}}>{c.user.fio}</b>
-                                            {c.is_diploma_request && <span className="badge" style={{background:'#DBEAFE', color:'#1E40AF', fontSize:10}}>🎓 Диплом</span>}
-                                        </div>
-                                        <div style={{fontSize:13, color:'#666', marginTop:2}}>GPA: <b>{c.user.gpa}</b> • {c.user.tech_stack}</div>
-                                        <div style={{background:'#F9FAFB', padding:'8px 12px', borderRadius:8, marginTop:8, fontSize:13, fontStyle:'italic', color:'#4B5563'}}>
-                                            "{c.cover_letter}"
-                                        </div>
+                                    <div style={{display:'flex', flexDirection:'column', gap:8, marginLeft:10}}>
+                                        <button className="btn-primary" style={{fontSize:13, padding:'6px 15px'}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
+                                        <button className="btn-secondary" style={{fontSize:13, color:'red', borderColor:'#FECACA', background:'white'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
                                     </div>
                                 </div>
-                                <div style={{display:'flex', flexDirection:'column', gap:8}}>
-                                    <button className="btn-primary" style={{fontSize:13, padding:'6px 15px'}} onClick={() => handleDecision(c.id, 'accept')}>Принять</button>
-                                    <button className="btn-secondary" style={{fontSize:13, color:'red', borderColor:'#FECACA', background:'white'}} onClick={() => handleDecision(c.id, 'reject')}>Отказать</button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -1450,14 +1512,29 @@ function App() {
                             </div>
                         )}
 
-                        {/* --- УПРАВЛЕНИЕ КОМАНДОЙ (ОБНОВЛЁННОЕ) --- */}
+                        {/* --- УПРАВЛЕНИЕ КОМАНДОЙ И ПРОЕКТОМ --- */}
                         {isMentor && (
                             <div style={{marginTop: 40, borderTop: '2px solid #eee', paddingTop: 20}}>
-                                <CandidatesManager
-                                    projectId={selectedProject.id}
-                                    onShowProfile={(u) => setViewedUser(u)}
-                                    maxStudents={selectedProject.max_students}
+
+                                {/* 1. Добавляем саму Панель управления (которой не хватало) */}
+                                <MentorAdminPanel
+                                    project={selectedProject}
+                                    onUpdate={async () => {
+                                        // Обновляем данные проекта после нажатия кнопок
+                                        const res = await axios.get(`${API_URL}/projects/${selectedProject.id}/`);
+                                        setSelectedProject(res.data);
+                                        fetchProjects(); // Обновляем список на главной
+                                    }}
                                 />
+
+                                {/* 2. Менеджер кандидатов (он у вас уже был) */}
+                                <div style={{ marginTop: 40 }}>
+                                    <CandidatesManager
+                                        projectId={selectedProject.id}
+                                        onShowProfile={(u) => setViewedUser(u)}
+                                        maxStudents={selectedProject.max_students}
+                                    />
+                                </div>
                             </div>
                         )}
 
