@@ -40,9 +40,8 @@
 
 ## 📐 Архитектура и Схемы
 
-> *Здесь будут расположены блок-схемы, описывающие логику работы системы.*
-
 ### 1. Архитектура приложения (Container Diagram)
+```mermaid
 graph TD
     %% Стили
     classDef client fill:#f9f,stroke:#333,stroke-width:2px,color:black;
@@ -71,16 +70,19 @@ graph TD
         DB[(🗄️ SQLite3 / File)]:::db
     end
 
+    %% Исправленный блок связей (добавлены кавычки)
     User -->|HTTP Request| Proxy
-    Proxy -->|/ (Root)| Static
-    Proxy -->|/api or /admin| API
+    Proxy -->|"/ (Root)"| Static
+    Proxy -->|"/api or /admin"| API
     Proxy -->|/media| Media
     
     API -->|Read/Write| DB
     API -.->|JSON Request| GigaChat
+```
 *(Схема взаимодействия: Nginx -> React Static / Django API -> Database / GigaChat)*
 
 ### 2. Схема User Flow (Путь студента)
+```mermaid
 flowchart TD
     %% Стили
     classDef start fill:#21A038,stroke:#333,stroke-width:2px,color:white;
@@ -111,9 +113,11 @@ flowchart TD
     Complete -- Да --> Grading[⭐ Ментор ставит оценку и отзыв]:::proc
     Grading --> Portfolio[🏆 Проект попадает в Портфолио]:::start
     Portfolio --> HR[💼 Виден в базе HR]:::proc
+```
 *(Регистрация -> Верификация -> Подача заявки -> Одобрение -> NDA -> Работа -> Оценка -> Портфолио)*
 
 ### 3. Схема БД (ER-Diagram)
+```mermaid
 erDiagram
     User ||--o{ Project : "Creates / Mentors"
     User ||--o{ Participation : "Joins"
@@ -152,6 +156,7 @@ erDiagram
         string title "GitLab/Jira"
         string url "Hidden until NDA"
     }
+```
 *(Связи между Users, Projects, Participations, Comments)*
 
 ---
