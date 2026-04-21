@@ -1,20 +1,24 @@
-version: '3.8'
-
 services:
   backend:
-    image: stavrmoris777/sberlab-backend:latest
+    build:
+      context: ./backend
     container_name: sberlab_backend
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-unsafe-dev-secret-key-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-True}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      GIGACHAT_CREDENTIALS: ${GIGACHAT_CREDENTIALS:-}
     ports:
       - "8000:8000"
     volumes:
       - media_volume:/app/media
-      # УБРАЛИ db_volume ОТСЮДА
     command: >
       sh -c "python manage.py migrate && 
              python manage.py runserver 0.0.0.0:8000"
 
   frontend:
-    image: stavrmoris777/sberlab-frontend:latest
+    build:
+      context: ./frontend/frontend
     container_name: sberlab_frontend
     ports:
       - "80:80"

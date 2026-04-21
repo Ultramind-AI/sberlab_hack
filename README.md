@@ -171,20 +171,25 @@ erDiagram
     cd sberlab_hack
     ```
 
-2.  **Запустите контейнеры:**
-    В проекте уже настроен `docker-compose.yml`, который подтянет готовые образы.
+2.  **Создайте `.env`:**
     ```bash
-    docker-compose up
+    cp .env.example .env
     ```
-    *Первый запуск может занять 1-2 минуты.*
+    Заполните `GIGACHAT_CREDENTIALS` в `.env`. Без этого AI-функции вернут ошибку конфигурации.
 
-3.  **Откройте в браузере:**
+3.  **Запустите контейнеры:**
+    ```bash
+    docker compose up --build
+    ```
+    При старом Docker Compose используйте `docker-compose up --build`.
+
+4.  **Откройте в браузере:**
     Перейдите по адресу: **[http://localhost](http://localhost)**
 
-4.  **Остановка:**
-    Нажмите `Ctrl+C` или выполните `docker-compose down`.
+5.  **Остановка:**
+    Нажмите `Ctrl+C` или выполните `docker compose down`.
 
-> **Примечание:** База данных с тестовыми пользователями и проектами уже вшита в образ. Вам не нужно создавать пользователей вручную.
+> **Примечание:** `.env` не коммитится в репозиторий. Для передачи настроек используйте `.env.example`.
 
 ---
 
@@ -199,21 +204,18 @@ erDiagram
 ### 1. Запуск Backend
 
 ```bash
-# Переходим в папку бэкенда
+cp .env.example .env
+# Заполните GIGACHAT_CREDENTIALS в .env
+
 cd backend
-
-# Создаем и активируем виртуальное окружение
 python -m venv venv
-source venv/bin/activate  # Для Mac/Linux
-# venv\Scripts\activate   # Для Windows
+source venv/bin/activate
+# Windows: venv\Scripts\activate
 
-# Устанавливаем зависимости
 pip install -r requirements.txt
 
-# Применяем миграции
 python manage.py migrate
 
-# Запускаем сервер
 python manage.py runserver
 ```
 Бэкенд будет доступен по адресу: `http://127.0.0.1:8000`
@@ -221,13 +223,10 @@ python manage.py runserver
 ### 2. Запуск Frontend
 
 ```bash
-# В новом терминале переходим в папку фронтенда
 cd frontend/frontend
 
-# Устанавливаем зависимости
 npm install
 
-# Запускаем режим разработки
 npm run dev
 ```
 Фронтенд будет доступен по адресу: `http://localhost:5173`
