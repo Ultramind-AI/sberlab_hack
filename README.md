@@ -163,33 +163,47 @@ erDiagram
 
 ## 🐳 Запуск через Docker (Рекомендуемый)
 
-Самый быстрый способ запустить проект для проверки жюри. Требуется установленный **Docker Desktop**.
+Требуется Docker Desktop или Docker Engine с Compose v2. После распаковки архива перейдите в корень проекта и выполните одну команду:
 
-1.  **Скачайте проект и перейдите в папку:**
-    ```bash
-    git clone https://gitlab.sberlab.nsu.ru/s.mariskin/sberlab_hack/
-    cd sberlab_hack
-    ```
+```bash
+docker compose up --build -d
+```
 
-2.  **Создайте `.env`:**
-    ```bash
-    cp .env.example .env
-    ```
-    Заполните `GIGACHAT_CREDENTIALS` в `.env`. Без этого AI-функции вернут ошибку конфигурации.
+Compose соберёт backend и frontend, применит миграции, создаст тестовые данные и дождётся готовности Django и SQLite перед запуском frontend.
 
-3.  **Запустите контейнеры:**
-    ```bash
-    docker compose up --build
-    ```
-    При старом Docker Compose используйте `docker-compose up --build`.
+Проверка готовности:
 
-4.  **Откройте в браузере:**
-    Перейдите по адресу: **[http://localhost](http://localhost)**
+```bash
+docker compose ps
+curl http://localhost:8080/health/
+```
 
-5.  **Остановка:**
-    Нажмите `Ctrl+C` или выполните `docker compose down`.
+Оба контейнера в `docker compose ps` должны иметь состояние `healthy`, а endpoint должен вернуть:
 
-> **Примечание:** `.env` не коммитится в репозиторий. Для передачи настроек используйте `.env.example`.
+```json
+{"status": "ok", "database": "ok"}
+```
+
+### Адреса и порты
+
+| Назначение | Адрес на компьютере | Внутри Compose |
+| :--- | :--- | :--- |
+| Frontend и основной вход | `http://localhost:8080` (порт `8080`) | Nginx, порт `80` |
+| Backend напрямую | `http://localhost:8000` | Django, порт `8000` |
+| Проверка готовности | `http://localhost:8080/health/` | Nginx → `backend:8000` |
+| SQLite | Файл не публикуется в сеть | `/app/data/db.sqlite3` |
+
+Frontend по умолчанию публикуется как `8080:80`: внешний порт компьютера — `8080`, а Nginx внутри контейнера продолжает слушать `80`. Чтобы использовать другой свободный внешний порт, передайте переменную окружения, например `FRONTEND_PORT=9090 docker compose up --build -d`.
+
+Отдельного контейнера базы данных нет: SQLite работает внутри backend. База сохраняется в томе `db_volume`, загруженные файлы — в `media_volume`, поэтому данные переживают пересоздание контейнера.
+
+Для остановки выполните `docker compose down`. Полный сброс вместе с базой и медиа:
+
+```bash
+docker compose down -v
+```
+
+Если нужны AI-функции, скопируйте `.env.example` в `.env` и заполните `GIGACHAT_CREDENTIALS`. Для запуска основного target ключ не требуется. Краткая пошаговая памятка находится в [LOCAL_RUN.md](LOCAL_RUN.md).
 
 ---
 
@@ -199,7 +213,7 @@ erDiagram
 
 ### Предварительные требования
 *   Python 3.11+
-*   Node.js 20+ (обязательно для Vite 6)
+*   Node.js 22+ (требуется текущей версией Vite)
 
 ### 1. Запуск Backend
 
@@ -215,6 +229,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 python manage.py migrate
+python manage.py seed_demo
 
 python manage.py runserver
 ```
@@ -225,7 +240,7 @@ python manage.py runserver
 ```bash
 cd frontend/frontend
 
-npm install
+npm ci
 
 npm run dev
 ```
@@ -235,7 +250,7 @@ npm run dev
 
 ## 🧪 Тестовые данные (Credentials)
 
-Для удобства проверки в базе уже созданы пользователи с разными ролями:
+При старте backend команда `python manage.py seed_demo` автоматически и повторяемо создаёт пользователей, два проекта, заявки и тестовый ресурс. Пароли демонстрационных пользователей восстанавливаются при каждом запуске контейнера.
 
 | Роль | Логин | Пароль        | Описание |
 | :--- | :--- |:--------------| :--- |

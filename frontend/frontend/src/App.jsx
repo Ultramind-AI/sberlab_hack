@@ -11,11 +11,8 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
 // --- НАСТРОЙКИ ---
-const API_URL = 'http://127.0.0.1:8000/api';
-const MEDIA_URL = 'http://127.0.0.1:8000';
-
-// const API_URL = '/api';
-// const MEDIA_URL = '';
+const API_URL = '/api';
+const MEDIA_URL = '';
 
 // --- КОМПОНЕНТ: МОДАЛКА ЗАВЕРШЕНИЯ ПРОЕКТА (С ОЦЕНКАМИ) ---
 const CompleteProjectModal = ({ project, isOpen, onClose, onSubmit }) => {

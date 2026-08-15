@@ -137,7 +137,7 @@ button { font-family: inherit; }
 .login-x { color: #ccc; font-weight: 300; }
 .login-subtitle { color: var(--text-secondary); margin-bottom: 32px; font-size: 15px; }
 
-.login-form { display: flex; flexDirection: column; gap: 16px; }
+.login-form { display: flex; flex-direction: column; gap: 16px; }
 
 /* --- BUTTONS & INPUTS --- */
 .form-input {

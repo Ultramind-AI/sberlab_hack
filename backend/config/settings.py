@@ -83,7 +83,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': os.getenv('DJANGO_DB_PATH', os.path.join(BASE_DIR, 'db.sqlite3')),
     }
 }
 
@@ -147,7 +147,7 @@ JAZZMIN_SETTINGS = {
     },
     "topmenu_links": [
         {"name": "Главная", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {"name": "Открыть сайт", "url": "http://localhost:5173", "new_window": True},
+        {"name": "Открыть сайт", "url": "http://localhost:8080", "new_window": True},
     ],
 
     "show_sidebar": True,
