@@ -4,7 +4,10 @@ import re
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.db import connection
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_GET
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,6 +20,19 @@ from rest_framework.permissions import AllowAny
 
 from .models import User, Project, ProjectComment, Participation, ProjectResource
 from .serializers import UserSerializer, ProjectSerializer, ParticipationSerializer, UserRegistrationSerializer
+
+
+@require_GET
+def health(request):
+    """Return 200 only when Django can execute a query against its database."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+    except Exception:
+        return JsonResponse({'status': 'error', 'database': 'unavailable'}, status=503)
+
+    return JsonResponse({'status': 'ok', 'database': 'ok'})
 
 
 def get_gigachat_credentials():
@@ -119,7 +135,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer = ParticipationSerializer(parts, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['post'], url_path='manage_candidate/(?P<part_id>\d+)')
+    @action(detail=True, methods=['post'], url_path=r'manage_candidate/(?P<part_id>\d+)')
     def manage_candidate(self, request, pk=None, part_id=None):
         project = self.get_object()
         if request.user not in project.mentors.all():
