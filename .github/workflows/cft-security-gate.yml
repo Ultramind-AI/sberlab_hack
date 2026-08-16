@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   security-gate:
@@ -153,6 +155,291 @@ jobs:
           name: cft-security-results
           path: agent/artifacts/security-pipeline
           if-no-files-found: warn
+
+      - name: Generate AI explanation for PR
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        continue-on-error: true
+        working-directory: agent
+        shell: bash
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PYCODE'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          gate_path = Path("artifacts/security-pipeline/gate.json")
+          out = Path("artifacts/security-pipeline/pr-comment.md")
+
+          marker = "<!-- cft-security-agent-comment -->"
+
+          if not gate_path.exists():
+              out.write_text(
+                  marker + "\n"
+                  "## 🤖 CFT Security Agent\n\n"
+                  "Не удалось сформировать итоговый `gate.json`. "
+                  "Проверьте логи GitHub Actions.\n",
+                  encoding="utf-8",
+              )
+              raise SystemExit(0)
+
+          gate = json.loads(gate_path.read_text(encoding="utf-8"))
+          findings = gate.get("findings", [])
+
+          blockers = [
+              f for f in findings
+              if f.get("gate_effect") == "fail"
+          ]
+          warnings = [
+              f for f in findings
+              if f.get("gate_effect") == "warn"
+          ]
+
+          safe_findings = [
+              {
+                  "finding_id": f.get("finding_id"),
+                  "status": f.get("status"),
+                  "gate_effect": f.get("gate_effect"),
+                  "context_priority": f.get("context_priority"),
+                  "reason": f.get("reason"),
+              }
+              for f in findings
+          ]
+
+          fallback = (
+              f"Security Gate завершил проверку с решением "
+              f"**{str(gate.get('decision', 'unknown')).upper()}**. "
+              f"Подтверждено {gate.get('confirmed', 0)} из "
+              f"{gate.get('reports_total', 0)} проверенных находок. "
+          )
+
+          if blockers:
+              fallback += (
+                  f"Merge заблокирован: обнаружено {len(blockers)} "
+                  "подтверждённых блокирующих находок с высоким "
+                  "контекстным приоритетом. Исправьте их и повторно "
+                  "запустите Security Gate."
+              )
+          else:
+              fallback += (
+                  "По текущей политике блокирующих HIGH/CRITICAL "
+                  "находок нет."
+              )
+
+          system_prompt = """Ты объясняешь разработчику результат CI/CD Security Gate.
+          Пиши на русском языке, просто и понятно.
+
+          Используй ТОЛЬКО переданные данные.
+          Не меняй решение PASS/WARN/FAIL.
+          Не придумывай Evidence.
+          Не описывай способы эксплуатации уязвимостей и не создавай payload.
+          Не показывай секреты, токены или значения паролей.
+
+          HIGH и CRITICAL — разные уровни.
+          Никогда не называй HIGH критическим.
+          Используй формулировку «высокий приоритет (HIGH)».
+
+          Не придумывай способы исправления, которых нет во входных данных.
+          Не утверждай, что отсутствует хеширование, санитизация,
+          аутентификация или другой механизм, если это прямо
+          не подтверждено Evidence.
+
+          Для рекомендаций используй консервативные формулировки:
+          «устранить подтверждённую проблему»,
+          «добавить ожидаемую проверку»,
+          «проверить конфигурацию»,
+          «повторно запустить Security Gate».
+
+          Если есть MEDIUM-находки с gate_effect=warn, явно скажи,
+          что они подтверждены, но сами по себе merge не блокируют.
+
+          Дай 3-5 коротких предложений:
+          1. почему PR заблокирован или разрешён;
+          2. какие классы проблем наиболее важны;
+          3. что разработчику сделать дальше.
+
+          LLM только объясняет решение. Само решение уже принято policy gate."""
+
+          user_prompt = json.dumps(
+              {
+                  "decision": gate.get("decision"),
+                  "reports_total": gate.get("reports_total"),
+                  "confirmed": gate.get("confirmed"),
+                  "rejected": gate.get("rejected"),
+                  "inconclusive": gate.get("inconclusive"),
+                  "blocking_findings": len(blockers),
+                  "warning_findings": len(warnings),
+                  "findings": safe_findings,
+              },
+              ensure_ascii=False,
+          )
+
+          routes = [
+              (
+                  "Groq",
+                  "https://api.groq.com/openai/v1/chat/completions",
+                  os.environ.get("GROQ_API_KEY", ""),
+                  "openai/gpt-oss-120b",
+              ),
+              (
+                  "OpenRouter",
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  os.environ.get("OPENROUTER_API_KEY", ""),
+                  "nvidia/nemotron-3-super-120b-a12b:free",
+              ),
+          ]
+
+          explanation = None
+          provider = "deterministic fallback"
+
+          for name, url, key, model in routes:
+              if not key:
+                  continue
+
+              payload = json.dumps({
+                  "model": model,
+                  "temperature": 0.2,
+                  "max_tokens": 350,
+                  "messages": [
+                      {"role": "system", "content": system_prompt},
+                      {"role": "user", "content": user_prompt},
+                  ],
+              }).encode()
+
+              request = urllib.request.Request(
+                  url,
+                  data=payload,
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {key}",
+                      "Content-Type": "application/json",
+                      "User-Agent": "cft-security-agent",
+                  },
+              )
+
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as r:
+                      data = json.loads(r.read().decode())
+
+                  candidate = data["choices"][0]["message"]["content"].strip()
+                  if candidate:
+                      explanation = candidate
+                      provider = name
+                      break
+
+              except Exception as exc:
+                  print(
+                      f"[pr-explanation] {name} unavailable: "
+                      f"{type(exc).__name__}"
+                  )
+
+          if not explanation:
+              explanation = fallback
+
+          decision = str(gate.get("decision", "unknown")).upper()
+          decision_icon = {
+              "PASS": "✅",
+              "WARN": "⚠️",
+              "FAIL": "❌",
+          }.get(decision, "❓")
+
+          lines = [
+              marker,
+              "## 🤖 CFT Security Agent",
+              "",
+              "### Что произошло",
+              "",
+              explanation,
+              "",
+              "### Результат",
+              "",
+              f"- **Решение:** {decision_icon} `{decision}`",
+              f"- **Проверено:** {gate.get('reports_total', 0)}",
+              f"- **Подтверждено:** {gate.get('confirmed', 0)}",
+              f"- **Блокирующих находок:** {len(blockers)}",
+              f"- **Предупреждений:** {len(warnings)}",
+              "",
+              "| Gate | Статус | Приоритет | Finding |",
+              "|---|---|---|---|",
+          ]
+
+          for f in findings:
+              effect = str(f.get("gate_effect", "unknown")).upper()
+              icon = {
+                  "FAIL": "❌",
+                  "WARN": "⚠️",
+                  "PASS": "✅",
+              }.get(effect, "❓")
+
+              lines.append(
+                  f"| {icon} {effect} | "
+                  f"{f.get('status', 'unknown')} | "
+                  f"{f.get('context_priority') or 'N/A'} | "
+                  f"`{f.get('finding_id', '')}` |"
+              )
+
+          lines += [
+              "",
+              "### Что делать дальше",
+              "",
+              "Исправьте блокирующие HIGH/CRITICAL находки и повторно "
+              "запустите Security Gate.",
+              "",
+              f"Полный FinalReport и Evidence: artifact "
+              f"`cft-security-results` в [GitHub Actions run]"
+              f"({os.environ['RUN_URL']}).",
+              "",
+              f"_Пояснение сформировано через {provider}. "
+              "Решение `PASS/WARN/FAIL` принимает детерминированный "
+              "policy gate; LLM только объясняет уже принятое решение._",
+          ]
+
+          out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print(f"[pr-explanation] prepared via {provider}")
+          PYCODE
+
+      - name: Publish Security Agent comment
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        continue-on-error: true
+        working-directory: agent
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- cft-security-agent-comment -->'
+          body_file='artifacts/security-pipeline/pr-comment.md'
+
+          if [ ! -f "$body_file" ]; then
+            echo "No PR comment generated"
+            exit 0
+          fi
+
+          existing_id="$(
+            gh api \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+              --jq ".[] | select(.body | contains(\"${marker}\")) | .id" \
+              | head -n 1
+          )"
+
+          if [ -n "$existing_id" ]; then
+            gh api \
+              --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/issues/comments/${existing_id}" \
+              -f body="$(cat "$body_file")"
+            echo "Updated existing CFT Security Agent comment"
+          else
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+              -f body="$(cat "$body_file")"
+            echo "Created CFT Security Agent comment"
+          fi
 
       - name: Enforce CI/CD Gate
         if: always()
