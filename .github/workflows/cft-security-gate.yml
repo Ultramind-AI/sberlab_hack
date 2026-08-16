@@ -64,7 +64,7 @@ jobs:
           set +e
 
           python -m app.pipeline_run \
-            --target ../target \
+            --target ../scan-target \
             --architecture targets/sberlab_architecture.yaml \
             --output-dir artifacts/security-pipeline \
             --max-iterations 1
