@@ -1,0 +1,160 @@
+name: CFT Security Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  security-gate:
+    name: AI Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout SberLab
+        uses: actions/checkout@v4
+        with:
+          path: target
+
+      - name: Checkout CFT Security Agent
+        uses: actions/checkout@v4
+        with:
+          repository: Ultramind-AI/cft-security-agent
+          path: agent
+          token: ${{ secrets.CFT_AGENT_REPO_TOKEN || github.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: agent/pyproject.toml
+
+      - name: Install agent + Semgrep
+        working-directory: agent
+        run: python -m pip install -e ".[sast]"
+
+      - name: Run AI security pipeline
+        id: security
+        working-directory: agent
+        env:
+          CFT_AGENT_MODE: llm
+          CFT_LLM_TRACE: "true"
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set +e
+
+          python -m app.pipeline_run \
+            --target ../target \
+            --architecture targets/sberlab_architecture.yaml \
+            --output-dir artifacts/security-pipeline \
+            --max-iterations 1
+
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Build GitHub Security Summary
+        if: always()
+        working-directory: agent
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          gate_path = Path("artifacts/security-pipeline/gate.json")
+
+          if not gate_path.exists():
+              summary = """# 🤖 CFT AI Security Gate
+
+          ## ❌ PIPELINE ERROR
+
+          `gate.json` was not produced.
+          """
+          else:
+              gate = json.loads(gate_path.read_text())
+
+              decision = gate["decision"].upper()
+              icon = {
+                  "PASS": "✅",
+                  "WARN": "⚠️",
+                  "FAIL": "❌",
+              }.get(decision, "❓")
+
+              lines = [
+                  "# 🤖 CFT AI Security Gate",
+                  "",
+                  f"## {icon} {decision}",
+                  "",
+                  "| Metric | Result |",
+                  "|---|---:|",
+                  f"| Reports | {gate['reports_total']} |",
+                  f"| Confirmed | {gate['confirmed']} |",
+                  f"| Rejected | {gate['rejected']} |",
+                  f"| Inconclusive | {gate['inconclusive']} |",
+                  f"| Policy blocked | {gate['policy_blocked']} |",
+                  "",
+                  "## Findings",
+                  "",
+                  "| Gate | Status | Context | Finding |",
+                  "|---|---|---|---|",
+              ]
+
+              for item in gate["findings"]:
+                  effect = item["gate_effect"].upper()
+                  effect_icon = {
+                      "PASS": "✅",
+                      "WARN": "⚠️",
+                      "FAIL": "❌",
+                  }.get(effect, "❓")
+
+                  lines.append(
+                      f"| {effect_icon} {effect} "
+                      f"| {item['status']} "
+                      f"| {item.get('context_priority') or 'N/A'} "
+                      f"| `{item['finding_id']}` |"
+                  )
+
+              if gate.get("reasons"):
+                  lines += ["", "## Decision basis", ""]
+                  lines += [f"- {reason}" for reason in gate["reasons"]]
+
+              summary = "\n".join(lines) + "\n"
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as output:
+              output.write(summary)
+          PY
+
+      - name: Upload security evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cft-security-results
+          path: agent/artifacts/security-pipeline
+          if-no-files-found: warn
+
+      - name: Enforce CI/CD Gate
+        if: always()
+        shell: bash
+        run: |
+          code="${{ steps.security.outputs.exit_code }}"
+
+          if [ -z "$code" ]; then
+            echo "::error::Security pipeline did not return a gate result."
+            exit 2
+          fi
+
+          exit "$code"
